@@ -1,0 +1,51 @@
+PROJECT CONTEXT (carbon69)
+
+GOAL
+- Build a public-facing website for Carbon69, an auto parts company.
+- Provide product discovery (search/browse), product detail pages, and a cart flow (checkout later).
+- Support internal catalog management (admin tools and APIs).
+
+CURRENT STATE SUMMARY
+- Backend: Django REST API skeleton with a custom User model and a demo file storage service using MinIO.
+- Frontend: Vite + React + TypeScript + Tailwind; current UI is a backend/MinIO smoke test.
+- Infra: docker-compose with Django (gunicorn), nginx, Postgres, Redis, Celery worker/beat, MinIO.
+
+BACKEND DETAILS
+- Location: backend/
+- Stack: Django 6.0, djangorestframework 3.16.1, simplejwt 5.5.1, Celery 5.4, boto3
+- Apps:
+  - api: Hello endpoint and FileRecord model with presigned upload/download URLs.
+  - users: Custom User model with role (admin/manager) and role-based permission helpers.
+- Auth: JWT; default permission is IsAuthenticated (hello and file endpoints are AllowAny).
+- Storage: MinIO client for presigned PUT/GET; bucket created at startup (minio_setup.py).
+- DB: Postgres via env or sqlite fallback.
+
+FRONTEND DETAILS
+- Location: frontend/
+- Stack: Vite + React + TypeScript + Tailwind CSS v3.
+- App: Single page that calls /api/hello/ and tests MinIO presigned upload/download.
+
+ROUTING / SERVICES
+- API:
+  - /api/hello/
+  - /api/files/presign-upload/
+  - /api/files/{id}/presign-download/
+  - /api/token/, /api/token/refresh/
+- Docker: nginx proxies /api and /admin; serves built frontend.
+
+DEV COMMANDS
+- Backend: cd backend; .\.venv\Scripts\Activate.ps1; python manage.py runserver
+- Frontend: cd frontend; npm install; npm run dev
+- Docker: docker compose up --build
+
+GAPS FOR CARBON69 GOALS
+- No product, catalog, or category models or endpoints.
+- No cart, checkout, orders, or customer account flows.
+- Frontend has no company branding, catalog UI, or marketing pages.
+- No search, filtering, or inventory management.
+
+NEXT STEP IDEAS
+- Define core domain models: Product, Category, Brand, Fitment, Inventory, Price.
+- Build catalog APIs (list, search, detail) and admin workflows.
+- Design site pages: Home, Catalog, Product Detail, About, Contact, Cart.
+- Decide ecommerce scope: guest checkout vs accounts, payments, tax/shipping.
