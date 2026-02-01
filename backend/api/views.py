@@ -195,7 +195,11 @@ class CartViewSet(viewsets.ModelViewSet):
         return queryset.none()
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user
+        if user.is_authenticated:
+            serializer.save(user=user)
+        else:
+            serializer.save()
 
 
 class CartItemViewSet(viewsets.ModelViewSet):

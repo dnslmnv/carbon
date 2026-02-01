@@ -155,7 +155,13 @@ class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
         fields = ["id", "user", "session_id", "created_at", "updated_at", "items"]
-        read_only_fields = ["user", "session_id", "created_at", "updated_at"]
+        read_only_fields = ["user", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            attrs.pop("session_id", None)
+        return super().validate(attrs)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
