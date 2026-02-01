@@ -1,15 +1,28 @@
+from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from cart.models import Cart, CartItem
+from catalog.models import Brand, Category, CategoryAttribute, Product, ProductAttributeValue
+from orders.models import Order
+
 from .models import FileRecord
 from .serializers import (
+    BrandSerializer,
+    CartItemSerializer,
+    CartSerializer,
+    CategoryAttributeSerializer,
+    CategorySerializer,
     FileRecordSerializer,
+    OrderSerializer,
     PresignDownloadResponseSerializer,
     PresignUploadRequestSerializer,
     PresignUploadResponseSerializer,
+    ProductAttributeValueSerializer,
+    ProductSerializer,
 )
 from storage import minio_client
 
@@ -64,3 +77,113 @@ class FileViewSet(viewsets.ReadOnlyModelViewSet):
             }
         )
         return Response(response.data)
+
+
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
+    queryset = Category.objects.filter(is_active=True).order_by("sort_order", "name")
+    serializer_class = CategorySerializer
+
+
+class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
+    queryset = Brand.objects.all().order_by("name")
+    serializer_class = BrandSerializer
+
+
+class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        queryset = Product.objects.filter(is_active=True).select_related(
+            "brand", "category"
+        )
+        category = self.request.query_params.get("category")
+        brand = self.request.query_params.get("brand")
+        search = self.request.query_params.get("search")
+        min_price = self.request.query_params.get("min_price")
+        max_price = self.request.query_params.get("max_price")
+        in_stock = self.request.query_params.get("in_stock")
+
+        if category:
+            queryset = queryset.filter(category_id=category)
+        if brand:
+            queryset = queryset.filter(brand_id=brand)
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        if min_price:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(price__lte=max_price)
+        if in_stock in {"1", "true", "yes"}:
+            queryset = queryset.filter(stock_quantity__gt=0)
+        return queryset.order_by("name")
+
+
+class CategoryAttributeViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
+    serializer_class = CategoryAttributeSerializer
+
+    def get_queryset(self):
+        queryset = CategoryAttribute.objects.all().select_related("category")
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category_id=category)
+        return queryset.order_by("name")
+
+
+class ProductAttributeValueViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
+    serializer_class = ProductAttributeValueSerializer
+
+    def get_queryset(self):
+        queryset = ProductAttributeValue.objects.select_related("product", "attribute")
+        product = self.request.query_params.get("product")
+        if product:
+            queryset = queryset.filter(product_id=product)
+        return queryset
+
+
+class CartViewSet(viewsets.ModelViewSet):
+    serializer_class = CartSerializer
+
+    def get_queryset(self):
+        queryset = Cart.objects.all()
+        if self.request.user.is_authenticated:
+            return queryset.filter(user=self.request.user)
+        session_id = self.request.query_params.get("session_id")
+        if session_id:
+            return queryset.filter(session_id=session_id)
+        return queryset.none()
+
+
+class CartItemViewSet(viewsets.ModelViewSet):
+    serializer_class = CartItemSerializer
+
+    def get_queryset(self):
+        queryset = CartItem.objects.select_related("cart", "product")
+        cart_id = self.request.query_params.get("cart")
+        if self.request.user.is_authenticated:
+            queryset = queryset.filter(cart__user=self.request.user)
+        else:
+            session_id = self.request.query_params.get("session_id")
+            if session_id:
+                queryset = queryset.filter(cart__session_id=session_id)
+            else:
+                return queryset.none()
+        if cart_id:
+            queryset = queryset.filter(cart_id=cart_id)
+        return queryset
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        queryset = Order.objects.prefetch_related("items")
+        if self.request.user.is_authenticated:
+            return queryset.filter(user=self.request.user)
+        return queryset.none()
