@@ -166,11 +166,17 @@ class CartItemViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = CartItem.objects.select_related("cart", "product")
         cart_id = self.request.query_params.get("cart")
-        if cart_id:
-            return queryset.filter(cart_id=cart_id)
         if self.request.user.is_authenticated:
-            return queryset.filter(cart__user=self.request.user)
-        return queryset.none()
+            queryset = queryset.filter(cart__user=self.request.user)
+        else:
+            session_id = self.request.query_params.get("session_id")
+            if session_id:
+                queryset = queryset.filter(cart__session_id=session_id)
+            else:
+                return queryset.none()
+        if cart_id:
+            queryset = queryset.filter(cart_id=cart_id)
+        return queryset
 
 
 class OrderViewSet(viewsets.ModelViewSet):
