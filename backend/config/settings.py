@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "orders",
     "shipping",
     "payments",
+    "storages",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -173,6 +174,25 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+minio_access_key = os.getenv("MINIO_ACCESS_KEY")
+minio_secret_key = os.getenv("MINIO_SECRET_KEY")
+if minio_access_key and minio_secret_key:
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    AWS_ACCESS_KEY_ID = minio_access_key
+    AWS_SECRET_ACCESS_KEY = minio_secret_key
+    AWS_STORAGE_BUCKET_NAME = os.getenv("MINIO_BUCKET", "files")
+    AWS_S3_REGION_NAME = os.getenv("MINIO_REGION", "us-east-1")
+    AWS_S3_ENDPOINT_URL = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
+    AWS_S3_ADDRESSING_STYLE = "path"
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+    AWS_S3_USE_SSL = os.getenv("MINIO_USE_SSL", "False").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    public_endpoint = os.getenv("MINIO_PUBLIC_ENDPOINT") or AWS_S3_ENDPOINT_URL
+    MEDIA_URL = f"{public_endpoint.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
