@@ -3,6 +3,26 @@
 from django.db import migrations, models
 
 
+def dedupe_user_emails(apps, schema_editor):
+    User = apps.get_model("users", "User")
+    used_emails = set()
+    for user in User.objects.order_by("id").only("id", "email"):
+        email = (user.email or "").strip()
+        if not email:
+            email = f"user-{user.id}@example.invalid"
+        if email in used_emails:
+            local, at, domain = email.partition("@")
+            if at:
+                email = f"{local}+{user.id}@{domain}"
+            else:
+                email = f"user-{user.id}@example.invalid"
+        while email in used_emails:
+            email = f"user-{user.id}-{len(used_emails)}@example.invalid"
+        user.email = email
+        user.save(update_fields=["email"])
+        used_emails.add(email)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -20,6 +40,7 @@ class Migration(migrations.Migration):
             name="phone_number",
             field=models.CharField(blank=True, max_length=32),
         ),
+        migrations.RunPython(dedupe_user_emails, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="user",
             name="email",
