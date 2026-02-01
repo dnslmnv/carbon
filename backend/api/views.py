@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, F
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -105,6 +105,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         min_price = self.request.query_params.get("min_price")
         max_price = self.request.query_params.get("max_price")
         in_stock = self.request.query_params.get("in_stock")
+        attribute_filters = self.request.query_params.getlist("attribute")
 
         if category:
             queryset = queryset.filter(category_id=category)
@@ -119,8 +120,36 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         if max_price:
             queryset = queryset.filter(price__lte=max_price)
         if in_stock in {"1", "true", "yes"}:
-            queryset = queryset.filter(stock_quantity__gt=0)
-        return queryset.order_by("name")
+            queryset = queryset.filter(stock_quantity__gt=F("stock_reserved"))
+
+        for entry in attribute_filters:
+            if ":" not in entry:
+                continue
+            attribute_id, raw_value = entry.split(":", 1)
+            if not attribute_id:
+                continue
+
+            value = raw_value.strip()
+            if value.lower() in {"true", "false"}:
+                queryset = queryset.filter(
+                    attributes__attribute_id=attribute_id,
+                    attributes__value_boolean=value.lower() == "true",
+                )
+            else:
+                try:
+                    number_value = float(value)
+                except ValueError:
+                    queryset = queryset.filter(
+                        attributes__attribute_id=attribute_id,
+                        attributes__value_string=value,
+                    )
+                else:
+                    queryset = queryset.filter(
+                        attributes__attribute_id=attribute_id,
+                        attributes__value_number=number_value,
+                    )
+
+        return queryset.order_by("name").distinct()
 
 
 class CategoryAttributeViewSet(viewsets.ReadOnlyModelViewSet):

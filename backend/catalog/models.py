@@ -80,6 +80,7 @@ class CategoryAttribute(models.Model):
     data_type = models.CharField(max_length=20, choices=DataType.choices)
     unit = models.CharField(max_length=50, blank=True)
     is_filterable = models.BooleanField(default=True)
+    is_required = models.BooleanField(default=False)
     filter_type = models.CharField(
         max_length=20, choices=FilterType.choices, blank=True
     )

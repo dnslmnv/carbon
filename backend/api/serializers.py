@@ -68,6 +68,7 @@ class CategoryAttributeSerializer(serializers.ModelSerializer):
             "data_type",
             "unit",
             "is_filterable",
+            "is_required",
             "filter_type",
         ]
 
@@ -148,7 +149,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ["id", "order", "product", "product_id", "quantity", "price_snapshot"]
-        read_only_fields = ["order"]
+        read_only_fields = ["order", "price_snapshot"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -174,7 +175,35 @@ class OrderSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
+        if not items_data:
+            raise serializers.ValidationError({"items": "Order must include at least one item."})
+
         order = Order.objects.create(**validated_data)
+        subtotal = 0
+
         for item in items_data:
-            OrderItem.objects.create(order=order, **item)
+            product = (
+                Product.objects.select_for_update()
+                .select_related("category")
+                .get(pk=item["product"].pk)
+            )
+            if product.stock_available < item["quantity"]:
+                raise serializers.ValidationError(
+                    {"items": f"Insufficient stock for {product.name}."}
+                )
+
+            price_snapshot = product.price
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=item["quantity"],
+                price_snapshot=price_snapshot,
+            )
+            product.stock_quantity = product.stock_quantity - item["quantity"]
+            product.save(update_fields=["stock_quantity"])
+            subtotal += price_snapshot * item["quantity"]
+
+        order.subtotal = subtotal
+        order.grand_total = subtotal + order.shipping_total + order.tax_total - order.discount_total
+        order.save(update_fields=["subtotal", "grand_total"])
         return order
