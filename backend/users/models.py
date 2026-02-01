@@ -7,6 +7,9 @@ class User(AbstractUser):
         ADMIN = "admin", "Admin"
         MANAGER = "manager", "Manager"
 
+    name = models.CharField(max_length=150, blank=True)
+    phone_number = models.CharField(max_length=32, blank=True)
+    email = models.EmailField(unique=True)
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
