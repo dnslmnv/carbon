@@ -1,0 +1,25 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        NGINX_CONF: prod.conf
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - static_data:/static:ro
+      - media_data:/media:ro
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+
+volumes:
+  letsencrypt:
+  certbot_www:
