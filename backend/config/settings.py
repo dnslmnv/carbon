@@ -12,13 +12,13 @@ SECRET_KEY = os.getenv(
 )
 
 
-DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
+DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes")
 
 raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
 if raw_allowed_hosts:
     ALLOWED_HOSTS = [host.strip() for host in raw_allowed_hosts.split(",") if host.strip()]
 else:
-    ALLOWED_HOSTS = ["*"]
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
 

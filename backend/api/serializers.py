@@ -130,6 +130,23 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ["id", "cart", "product", "product_id", "quantity", "price_snapshot"]
+        read_only_fields = ["price_snapshot"]
+
+    def validate_cart(self, cart):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and cart.user_id != request.user.id:
+            raise serializers.ValidationError("Cart does not belong to the authenticated user.")
+        return cart
+
+    def create(self, validated_data):
+        product = validated_data["product"]
+        validated_data["price_snapshot"] = product.price
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "product" in validated_data:
+            validated_data["price_snapshot"] = validated_data["product"].price
+        return super().update(instance, validated_data)
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -138,6 +155,7 @@ class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
         fields = ["id", "user", "session_id", "created_at", "updated_at", "items"]
+        read_only_fields = ["user", "session_id", "created_at", "updated_at"]
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -170,7 +188,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "updated_at",
             "items",
         ]
-        read_only_fields = ["status", "created_at", "updated_at"]
+        read_only_fields = ["user", "status", "created_at", "updated_at"]
 
     @transaction.atomic
     def create(self, validated_data):

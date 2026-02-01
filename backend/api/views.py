@@ -1,7 +1,7 @@
 from django.db.models import Q, F
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -37,14 +37,19 @@ class HelloView(APIView):
 class FileViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Minimal file endpoints for testing with MinIO.
-    Authentication is open for demo purposes; tighten for production.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     queryset = FileRecord.objects.all().order_by("-created_at")
     serializer_class = FileRecordSerializer
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="presign-upload")
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated and user.is_staff:
+            return super().get_queryset()
+        return super().get_queryset().filter(uploaded_by=user)
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated], url_path="presign-upload")
     def presign_upload(self, request):
         serializer = PresignUploadRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -58,13 +63,14 @@ class FileViewSet(viewsets.ReadOnlyModelViewSet):
             filename=data["filename"],
             content_type=data.get("content_type", ""),
             size=data.get("size") or 0,
+            uploaded_by=request.user if request.user.is_authenticated else None,
         )
         response = PresignUploadResponseSerializer(
             {"id": record.id, "object_key": key, "upload_url": upload_url}
         )
         return Response(response.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["get"], permission_classes=[AllowAny], url_path="presign-download")
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated], url_path="presign-download")
     def presign_download(self, request, pk=None):
         record = self.get_object()
         download_url = minio_client.presigned_get_url(record.object_key, expires_in=900)
@@ -188,6 +194,9 @@ class CartViewSet(viewsets.ModelViewSet):
             return queryset.filter(session_id=session_id)
         return queryset.none()
 
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 
 class CartItemViewSet(viewsets.ModelViewSet):
     serializer_class = CartItemSerializer
@@ -216,3 +225,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return queryset.filter(user=self.request.user)
         return queryset.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
