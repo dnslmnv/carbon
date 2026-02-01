@@ -1,4 +1,16 @@
+from django.db import transaction
 from rest_framework import serializers
+
+from cart.models import Cart, CartItem
+from catalog.models import (
+    Brand,
+    Category,
+    CategoryAttribute,
+    Product,
+    ProductAttributeValue,
+    ProductMedia,
+)
+from orders.models import Order, OrderItem
 
 from .models import FileRecord
 
@@ -26,3 +38,143 @@ class FileRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileRecord
         fields = ["id", "object_key", "filename", "content_type", "size", "created_at"]
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "slug", "parent", "is_active", "sort_order"]
+
+
+class BrandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Brand
+        fields = ["id", "name", "slug", "logo_url", "description"]
+
+
+class ProductMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductMedia
+        fields = ["id", "file_url", "alt_text", "sort_order"]
+
+
+class CategoryAttributeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CategoryAttribute
+        fields = [
+            "id",
+            "category",
+            "name",
+            "data_type",
+            "unit",
+            "is_filterable",
+            "filter_type",
+        ]
+
+
+class ProductAttributeValueSerializer(serializers.ModelSerializer):
+    attribute = CategoryAttributeSerializer(read_only=True)
+    attribute_id = serializers.PrimaryKeyRelatedField(
+        source="attribute",
+        queryset=CategoryAttribute.objects.all(),
+        write_only=True,
+        required=False,
+    )
+
+    class Meta:
+        model = ProductAttributeValue
+        fields = [
+            "id",
+            "product",
+            "attribute",
+            "attribute_id",
+            "value_string",
+            "value_number",
+            "value_boolean",
+        ]
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    media = ProductMediaSerializer(many=True, read_only=True)
+    attributes = ProductAttributeValueSerializer(many=True, read_only=True)
+    stock_available = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "description",
+            "brand",
+            "category",
+            "price",
+            "stock_quantity",
+            "stock_reserved",
+            "stock_available",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "media",
+            "attributes",
+        ]
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        source="product", queryset=Product.objects.all(), write_only=True
+    )
+
+    class Meta:
+        model = CartItem
+        fields = ["id", "cart", "product", "product_id", "quantity", "price_snapshot"]
+
+
+class CartSerializer(serializers.ModelSerializer):
+    items = CartItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Cart
+        fields = ["id", "user", "session_id", "created_at", "updated_at", "items"]
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        source="product", queryset=Product.objects.all(), write_only=True
+    )
+
+    class Meta:
+        model = OrderItem
+        fields = ["id", "order", "product", "product_id", "quantity", "price_snapshot"]
+        read_only_fields = ["order"]
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "user",
+            "status",
+            "subtotal",
+            "shipping_total",
+            "tax_total",
+            "discount_total",
+            "grand_total",
+            "created_at",
+            "updated_at",
+            "items",
+        ]
+        read_only_fields = ["status", "created_at", "updated_at"]
+
+    @transaction.atomic
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        order = Order.objects.create(**validated_data)
+        for item in items_data:
+            OrderItem.objects.create(order=order, **item)
+        return order
