@@ -24,13 +24,9 @@ This guide assumes a single Linux server with Docker installed, a domain already
 
 ## 3) Prepare environment files
 
-1. Copy the production environment template and update values:
-   ```bash
-   cp backend/env_production_example.txt backend/.env
-   ```
-2. Edit `backend/.env`:
-   - Set `ALLOWED_HOSTS` to `carbon69.ru,www.carbon69.ru`.
-   - Set `SECRET_KEY` to a strong random value.
+1. Review the checked-in `backend/.env`:
+   - Confirm `ALLOWED_HOSTS` is `carbon69.ru,www.carbon69.ru`.
+   - Rotate `SECRET_KEY`, `POSTGRES_PASSWORD`, and `DJANGO_SUPERUSER_PASSWORD` if needed.
    - Update any DB credentials you want to use.
 
 > **Note:** The backend is optional for your current deployment. If you do not need it, you can keep it running as-is; it will not affect the static frontend unless you call the `/api` or `/admin` routes.
