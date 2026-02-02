@@ -5,8 +5,10 @@ This guide assumes a single Linux server with Docker installed, a domain already
 ## 1) Server prerequisites
 
 1. **Point DNS to your server**
-   - Create an `A` record for `example.com` pointing to your server's IPv4 address.
+   - Create an `A` record for `carbon69.ru` pointing to your server's IPv4 address.
    - (Optional) Create an `A` record for `www` pointing to the same IP.
+   - (Optional) If you also have IPv6, add matching `AAAA` records for `carbon69.ru` and `www`.
+   - **IP choice:** make sure you provision a **public IPv4** address. IPv6 is optional, but IPv4 ensures compatibility with all DNS clients.
 
 2. **Open firewall ports**
    - Allow inbound TCP on **80** and **443**.
@@ -24,17 +26,22 @@ This guide assumes a single Linux server with Docker installed, a domain already
    - Set `ALLOWED_HOSTS` to your domain(s).
    - Set `SECRET_KEY` to a strong random value.
    - Update any DB credentials you want to use.
+3. Create the frontend environment file to enable the WIP page:
+   ```bash
+   echo "VITE_WIP_PAGE=1" > frontend/.env
+   ```
+   - Set it to `0` (or remove the file) when you want the full site to show.
 
 > **Note:** The backend is optional for your current deployment. If you do not need it, you can keep it running as-is; it will not affect the static frontend unless you call the `/api` or `/admin` routes.
 
 ## 3) Configure Nginx for your domain + SSL
 
 1. Open `nginx/prod.conf` and replace:
-   - `example.com` / `www.example.com` with your real domain(s).
+   - `carbon69.ru` / `www.carbon69.ru` with your real domain(s).
    - SSL certificate paths should match your domain directory in `/etc/letsencrypt/live/<your-domain>/`.
 
 2. Open `nginx/prod-http.conf` and replace:
-   - `example.com` / `www.example.com` with your real domain(s).
+   - `carbon69.ru` / `www.carbon69.ru` with your real domain(s).
 
 3. The production Nginx config already includes:
    - HTTP → HTTPS redirect
@@ -57,8 +64,8 @@ Use the included `certbot` container to issue the certificate (replace domain + 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot \
   --webroot-path /var/www/certbot \
-  -d example.com \
-  -d www.example.com \
+  -d carbon69.ru \
+  -d www.carbon69.ru \
   --email you@example.com \
   --agree-tos \
   --no-eff-email
@@ -87,7 +94,7 @@ Let's Encrypt certificates expire every 90 days. Run this monthly via cron:
 
 ## 7) Validation checklist
 
-- `http://example.com` redirects to `https://example.com`.
-- `https://example.com` serves the SPA.
-- `https://example.com/api/` returns a backend response (optional).
+- `http://carbon69.ru` redirects to `https://carbon69.ru`.
+- `https://carbon69.ru` serves the SPA.
+- `https://carbon69.ru/api/` returns a backend response (optional).
 - SSL check: <https://www.ssllabs.com/ssltest/>
