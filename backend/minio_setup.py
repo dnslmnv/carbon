@@ -2,7 +2,7 @@ import os
 from typing import List, Optional
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
 
 
 def _parse_origins(raw: Optional[str]) -> List[str]:
@@ -37,14 +37,18 @@ def ensure_minio_bucket() -> None:
         return
 
     session = boto3.session.Session()
-    s3 = session.client(
-        "s3",
-        endpoint_url=endpoint,
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
-        region_name=region,
-        use_ssl=use_ssl,
-    )
+    try:
+        s3 = session.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region,
+            use_ssl=use_ssl,
+        )
+    except (BotoCoreError, EndpointConnectionError) as exc:
+        print(f"MinIO setup: error creating client: {exc}")
+        return
 
     try:
         s3.head_bucket(Bucket=bucket)
@@ -56,6 +60,9 @@ def ensure_minio_bucket() -> None:
         else:
             print(f"MinIO setup: error checking bucket: {exc}")
             return
+    except (BotoCoreError, EndpointConnectionError) as exc:
+        print(f"MinIO setup: error checking bucket: {exc}")
+        return
 
     if not bucket_exists:
         try:
@@ -65,7 +72,7 @@ def ensure_minio_bucket() -> None:
                 params["CreateBucketConfiguration"] = {"LocationConstraint": region}
             s3.create_bucket(**params)
             print(f"MinIO setup: created bucket '{bucket}'")
-        except ClientError as exc:
+        except (BotoCoreError, ClientError, EndpointConnectionError) as exc:
             print(f"MinIO setup: error creating bucket '{bucket}': {exc}")
             return
 
@@ -86,7 +93,7 @@ def ensure_minio_bucket() -> None:
                 },
             )
             print(f"MinIO setup: applied CORS for {cors_origins}")
-        except ClientError as exc:
+        except (BotoCoreError, ClientError, EndpointConnectionError) as exc:
             print(f"MinIO setup: error setting CORS: {exc}")
     else:
         print("MinIO setup: no CORS origins configured; skipping CORS")
