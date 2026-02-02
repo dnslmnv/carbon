@@ -388,6 +388,9 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900">
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-20 mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow-sm shadow-amber-100">
+          🚧 Сайт в разработке (WIP). Сейчас доступна только демо-версия интерфейса.
+        </div>
         {/* Навбар */}
         <header className="flex flex-col rounded-2xl bg-white p-4 shadow-md shadow-gray-100">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
