@@ -304,6 +304,23 @@ const catalogCategories: CatalogCategory[] = [
 ]
 
 function App() {
+  const isWipMode = import.meta.env.VITE_WIP_PAGE === '1'
+
+  if (isWipMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 text-center text-xl font-semibold text-gray-900">
+        <div className="flex flex-col items-center gap-6">
+          <img
+            src="/logo.png"
+            alt="Carbon 69"
+            className="h-40 w-40 rounded-full object-contain shadow-md"
+          />
+          <p>Сайт в разработке. Трудимся для вашего удобства.</p>
+        </div>
+      </div>
+    )
+  }
+
   const [query, setQuery] = useState('')
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
   const [page, setPage] = useState<'home' | 'catalog' | 'product' | 'cart'>('home')
