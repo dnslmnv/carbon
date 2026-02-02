@@ -33,20 +33,27 @@ This guide assumes a single Linux server with Docker installed, a domain already
    - `example.com` / `www.example.com` with your real domain(s).
    - SSL certificate paths should match your domain directory in `/etc/letsencrypt/live/<your-domain>/`.
 
-2. The production Nginx config already includes:
+2. Open `nginx/prod-http.conf` and replace:
+   - `example.com` / `www.example.com` with your real domain(s).
+
+3. The production Nginx config already includes:
    - HTTP → HTTPS redirect
    - ACME challenge path for Let's Encrypt
    - Static SPA routing
 
 ## 4) Obtain SSL certificates
 
-Use the included `certbot` container to issue the certificate:
+Before you have certificates, use the HTTP-only config so Nginx can start and serve the ACME challenge.
 
 ```bash
 # First boot with HTTP only (for ACME challenge)
+export NGINX_CONF=prod-http.conf
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
+```
 
-# Request cert (replace domain + email)
+Use the included `certbot` container to issue the certificate (replace domain + email):
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot \
   --webroot-path /var/www/certbot \
@@ -60,6 +67,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot
 After the certificate is issued, restart Nginx so it picks up the new files:
 
 ```bash
+unset NGINX_CONF
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
 ```
 
