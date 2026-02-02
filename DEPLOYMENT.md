@@ -54,8 +54,9 @@ Before you have certificates, use the HTTP-only config so Nginx can start and se
 
 ```bash
 # First boot with HTTP only (for ACME challenge)
+# Use --no-deps so nginx can start even if backend isn't ready yet.
 export NGINX_CONF=prod-http.conf
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps nginx
 ```
 
 Use the included `certbot` container to issue the certificate (replace domain + email):
