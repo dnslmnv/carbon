@@ -386,6 +386,21 @@ function App() {
   )
 
   return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-6 text-gray-900">
+      <div className="max-w-xl rounded-3xl bg-white p-10 text-center shadow-lg shadow-gray-100">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-3xl">
+          🚧
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Сайт в разработке</h1>
+        <p className="mt-3 text-base text-gray-600">
+          Мы готовим новый сервис. Сейчас доступна только демо-версия интерфейса.
+        </p>
+        <p className="mt-6 text-sm text-gray-500">Carbon 69 · 2025</p>
+      </div>
+    </div>
+  )
+
+  return (
     <div className="min-h-screen bg-gray-100 text-gray-900">
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
         {/* Навбар */}

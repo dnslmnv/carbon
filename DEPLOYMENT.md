@@ -2,10 +2,18 @@
 
 This guide assumes a single Linux server with Docker installed, a domain already purchased, and that the site can be served as a static frontend with an (optional) Django backend behind Nginx.
 
-## 1) Server prerequisites
+## 1) Clone the repository
+
+1. SSH into your server and clone the repo:
+   ```bash
+   git clone https://github.com/dnslmnv/carbon.git
+   cd carbon
+   ```
+
+## 2) Server prerequisites
 
 1. **Point DNS to your server**
-   - Create an `A` record for `example.com` pointing to your server's IPv4 address.
+   - Create an `A` record for `carbon69.ru` pointing to your server's IPv4 address.
    - (Optional) Create an `A` record for `www` pointing to the same IP.
 
 2. **Open firewall ports**
@@ -14,34 +22,30 @@ This guide assumes a single Linux server with Docker installed, a domain already
 3. **Install Docker + Docker Compose**
    - Install Docker Engine and the `docker compose` plugin for your distribution.
 
-## 2) Prepare environment files
+## 3) Prepare environment files
 
-1. Copy the production environment template and update values:
-   ```bash
-   cp backend/env_production_example.txt backend/.env
-   ```
-2. Edit `backend/.env`:
-   - Set `ALLOWED_HOSTS` to your domain(s).
-   - Set `SECRET_KEY` to a strong random value.
+1. Review the checked-in `backend/.env`:
+   - Confirm `ALLOWED_HOSTS` is `carbon69.ru,www.carbon69.ru`.
+   - Rotate `SECRET_KEY`, `POSTGRES_PASSWORD`, and `DJANGO_SUPERUSER_PASSWORD` if needed.
    - Update any DB credentials you want to use.
 
 > **Note:** The backend is optional for your current deployment. If you do not need it, you can keep it running as-is; it will not affect the static frontend unless you call the `/api` or `/admin` routes.
 
-## 3) Configure Nginx for your domain + SSL
+## 4) Configure Nginx for your domain + SSL
 
 1. Open `nginx/prod.conf` and replace:
-   - `example.com` / `www.example.com` with your real domain(s).
+   - `carbon69.ru` / `www.carbon69.ru` with your real domain(s).
    - SSL certificate paths should match your domain directory in `/etc/letsencrypt/live/<your-domain>/`.
 
 2. Open `nginx/prod-http.conf` and replace:
-   - `example.com` / `www.example.com` with your real domain(s).
+   - `carbon69.ru` / `www.carbon69.ru` with your real domain(s).
 
 3. The production Nginx config already includes:
    - HTTP → HTTPS redirect
    - ACME challenge path for Let's Encrypt
    - Static SPA routing
 
-## 4) Obtain SSL certificates
+## 5) Obtain SSL certificates
 
 Before you have certificates, use the HTTP-only config so Nginx can start and serve the ACME challenge.
 
@@ -57,8 +61,8 @@ Use the included `certbot` container to issue the certificate (replace domain + 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot \
   --webroot-path /var/www/certbot \
-  -d example.com \
-  -d www.example.com \
+  -d carbon69.ru \
+  -d www.carbon69.ru \
   --email you@example.com \
   --agree-tos \
   --no-eff-email
@@ -71,13 +75,13 @@ unset NGINX_CONF
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
 ```
 
-## 5) Run the full stack
+## 6) Run the full stack
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-## 6) Automatic certificate renewal
+## 7) Automatic certificate renewal
 
 Let's Encrypt certificates expire every 90 days. Run this monthly via cron:
 
@@ -85,9 +89,9 @@ Let's Encrypt certificates expire every 90 days. Run this monthly via cron:
 0 3 1 * * docker compose -f /path/to/docker-compose.yml -f /path/to/docker-compose.prod.yml run --rm certbot renew && docker compose -f /path/to/docker-compose.yml -f /path/to/docker-compose.prod.yml exec nginx nginx -s reload
 ```
 
-## 7) Validation checklist
+## 8) Validation checklist
 
-- `http://example.com` redirects to `https://example.com`.
-- `https://example.com` serves the SPA.
-- `https://example.com/api/` returns a backend response (optional).
+- `http://carbon69.ru` redirects to `https://carbon69.ru`.
+- `https://carbon69.ru` serves the SPA.
+- `https://carbon69.ru/api/` returns a backend response (optional).
 - SSL check: <https://www.ssllabs.com/ssltest/>
