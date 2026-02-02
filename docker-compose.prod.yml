@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: nginx/Dockerfile
       args:
-        NGINX_CONF: prod.conf
+        NGINX_CONF: ${NGINX_CONF:-prod.conf}
     ports:
       - "80:80"
       - "443:443"
