@@ -85,6 +85,50 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
+## 5.1) Makefile shortcuts (local + server)
+
+The repo includes a `Makefile` to chain common workflows.
+
+### Local development
+
+- Start the stack (foreground):
+  ```bash
+  make dev-up
+  ```
+- Start the stack (detached):
+  ```bash
+  make dev-up-d
+  ```
+- Rebuild and restart in the background:
+  ```bash
+  make dev-restart
+  ```
+- Stop containers:
+  ```bash
+  make dev-down
+  ```
+
+### Server updates
+
+Run these on the server in the repo folder.
+
+- Pull latest code and rebuild the production stack:
+  ```bash
+  make prod-update
+  ```
+- Start the production stack:
+  ```bash
+  make prod-up
+  ```
+- Restart running production containers:
+  ```bash
+  make prod-restart
+  ```
+- Stop production containers:
+  ```bash
+  make prod-down
+  ```
+
 ## 6) Automatic certificate renewal
 
 Let's Encrypt certificates expire every 90 days. Run this monthly via cron:
