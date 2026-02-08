@@ -102,6 +102,69 @@ type CatalogProduct = {
   image_url: string
 }
 
+type ProductMedia = {
+  id: number
+  file_url: string
+  alt_text: string
+  sort_order: number
+}
+
+type ProductAttribute = {
+  id: number
+  category: number
+  name: string
+  data_type: string
+  unit: string
+  is_filterable: boolean
+  is_required: boolean
+  filter_type: string
+}
+
+type ProductAttributeValue = {
+  id: number
+  product: number
+  attribute: ProductAttribute
+  value_string: string
+  value_number: string | null
+  value_boolean: boolean | null
+}
+
+type BrandDetail = {
+  id: number
+  name: string
+  slug: string
+  logo_url: string
+  description: string
+}
+
+type CategoryDetail = {
+  id: number
+  name: string
+  slug: string
+  parent: number | null
+  image_url: string
+  is_active: boolean
+  sort_order: number
+}
+
+type ProductDetail = {
+  id: number
+  name: string
+  slug: string
+  description: string
+  brand: BrandDetail
+  category: CategoryDetail
+  price: string
+  stock_quantity: number
+  stock_reserved: number
+  stock_available: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  media: ProductMedia[]
+  attributes: ProductAttributeValue[]
+}
+
 type CatalogPageResponse = {
   category: {
     id: number
@@ -159,37 +222,14 @@ const cartItems: CartItem[] = [
   },
 ]
 
-const productBreadcrumbs = [
-  'Каталоги',
-  'Автохимия',
-  'Для кузовного ремонта',
-  'Проникающие смазки',
-  'LAVR',
-]
-
-const productTitle = 'Смазка LAVR LN1496'
-const productSubtitle = 'LAVR Смазка многоцелевая LV-40'
-const productPrice = 'от 257 руб.'
-const productAvailability = 'В наличии 407 шт'
 const productRating = 4.5
 const productReviews = 12
-const productImage = '/categories/avtosvet.png'
-
-const productSpecs = [
-  { label: 'Объем (л)', value: '0.1' },
-  { label: 'Вид упаковки', value: 'Аэрозоль' },
-  { label: 'Артикул', value: 'LN1496' },
-  { label: 'Производитель', value: 'LAVR' },
-]
 
 const productDelivery = [
   { label: 'Экспресс', value: 'от 15 минут' },
   { label: 'Курьером', value: 'от 1 дня' },
   { label: 'Самовывоз', value: 'Бесплатно' },
 ]
-
-const productDescription =
-  'Многофункциональная смазка для вытеснения влаги, защиты от коррозии и устранения скрипов. Быстро проникает в узлы, защищает от влаги и предотвращает окисление электрооборудования.'
 
 const productApplicability = [
   'Петли и замки',
@@ -223,6 +263,10 @@ function App() {
   const [catalogPage, setCatalogPage] = useState(1)
   const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
   const [catalogError, setCatalogError] = useState(false)
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
+  const [productData, setProductData] = useState<ProductDetail | null>(null)
+  const [productError, setProductError] = useState(false)
+  const [productLoading, setProductLoading] = useState(false)
   const navigate = (nextPage: 'home' | 'catalog' | 'product' | 'cart') => {
     setPage(nextPage)
     setIsCatalogOpen(false)
@@ -374,6 +418,52 @@ function App() {
     }
   }, [currentSlide, slides.length])
 
+  useEffect(() => {
+    if (!isProductPage) {
+      return
+    }
+    if (!selectedProductId && catalogData?.products.results.length) {
+      setSelectedProductId(catalogData.products.results[0].id)
+    }
+  }, [catalogData?.products.results, isProductPage, selectedProductId])
+
+  useEffect(() => {
+    let isActive = true
+
+    const loadProduct = async () => {
+      if (!selectedProductId) {
+        return
+      }
+      setProductLoading(true)
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/products/${selectedProductId}/`)
+        if (!response.ok) {
+          throw new Error('Failed to load product')
+        }
+        const data = (await response.json()) as ProductDetail
+        if (!isActive) {
+          return
+        }
+        setProductData(data)
+        setProductError(false)
+      } catch {
+        if (isActive) {
+          setProductError(true)
+        }
+      } finally {
+        if (isActive) {
+          setProductLoading(false)
+        }
+      }
+    }
+
+    loadProduct()
+
+    return () => {
+      isActive = false
+    }
+  }, [apiBaseUrl, selectedProductId])
+
   const findCategoryById = (entries: CatalogCategory[], id: number | null) => {
     if (!id) {
       return null
@@ -392,6 +482,49 @@ function App() {
 
   const catalogTree = catalogData?.category_tree ?? []
   const activeCatalog = findCategoryById(catalogTree, activeCatalogId)
+  const productBreadcrumbs = useMemo(() => {
+    if (!productData) {
+      return ['Каталоги']
+    }
+    return ['Каталоги', productData.category?.name, productData.brand?.name].filter(
+      Boolean,
+    ) as string[]
+  }, [productData])
+  const productMedia = useMemo(() => {
+    if (!productData?.media?.length) {
+      return null
+    }
+    return [...productData.media].sort((a, b) => a.sort_order - b.sort_order)[0]
+  }, [productData])
+  const productSpecs = useMemo(() => {
+    if (!productData?.attributes?.length) {
+      return []
+    }
+    return productData.attributes
+      .map((item) => {
+        const attribute = item.attribute
+        const value =
+          item.value_string ||
+          (item.value_number != null ? String(item.value_number) : null) ||
+          (item.value_boolean != null ? (item.value_boolean ? 'Да' : 'Нет') : null)
+        if (!attribute || !value) {
+          return null
+        }
+        const label = attribute.unit ? `${attribute.name} (${attribute.unit})` : attribute.name
+        return { label, value }
+      })
+      .filter(Boolean) as { label: string; value: string }[]
+  }, [productData])
+  const productTitle = productData?.name ?? 'Товар'
+  const productSubtitle = productData?.brand?.name ?? 'Описание производителя'
+  const productPrice = productData ? `от ${formatPrice(Number(productData.price))}` : '—'
+  const productAvailability = productData
+    ? productData.stock_available > 0
+      ? `В наличии ${productData.stock_available} шт`
+      : 'Нет в наличии'
+    : '—'
+  const productDescription = productData?.description || 'Описание пока не добавлено.'
+  const productImage = productMedia?.file_url || '/categories/avtosvet.png'
 
   const footerSections = useMemo(
     () => [
@@ -759,7 +892,10 @@ function App() {
                         <p className="text-xs text-gray-500">{product.brand_name}</p>
                         <button
                           type="button"
-                          onClick={() => navigate('product')}
+                          onClick={() => {
+                            setSelectedProductId(product.id)
+                            navigate('product')
+                          }}
                           className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                         >
                           от {formatPrice(Number(product.price))}
@@ -841,16 +977,20 @@ function App() {
                     </div>
 
                     <div className="space-y-2 text-sm text-gray-700">
-                      {productSpecs.map((spec) => (
-                        <div key={spec.label} className="flex items-center justify-between gap-4">
-                          <span className="text-gray-500">{spec.label}</span>
-                          <span className="font-semibold text-gray-900">{spec.value}</span>
-                        </div>
-                      ))}
+                      {productSpecs.length ? (
+                        productSpecs.map((spec) => (
+                          <div key={spec.label} className="flex items-center justify-between gap-4">
+                            <span className="text-gray-500">{spec.label}</span>
+                            <span className="font-semibold text-gray-900">{spec.value}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-500">Характеристики появятся позже.</p>
+                      )}
                     </div>
 
                     <div className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700">
-                      LAVR
+                      {productData?.brand?.name ?? 'Бренд'}
                       <span className="text-gray-400">Производитель</span>
                     </div>
                   </div>
@@ -866,6 +1006,16 @@ function App() {
                       <p className="mt-2 text-center text-xs font-semibold text-emerald-600">
                         {productAvailability}
                       </p>
+                      {productLoading ? (
+                        <p className="mt-2 text-center text-xs text-gray-500">
+                          Загружаем данные товара...
+                        </p>
+                      ) : null}
+                      {productError ? (
+                        <p className="mt-2 text-center text-xs text-red-600">
+                          Не удалось загрузить данные товара.
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700 shadow-sm">

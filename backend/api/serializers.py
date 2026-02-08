@@ -142,6 +142,34 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
 
+class ProductDetailSerializer(serializers.ModelSerializer):
+    media = ProductMediaSerializer(many=True, read_only=True)
+    attributes = ProductAttributeValueSerializer(many=True, read_only=True)
+    stock_available = serializers.IntegerField(read_only=True)
+    brand = BrandSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "description",
+            "brand",
+            "category",
+            "price",
+            "stock_quantity",
+            "stock_reserved",
+            "stock_available",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "media",
+            "attributes",
+        ]
+
+
 class CatalogProductSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     brand_name = serializers.CharField(source="brand.name", read_only=True)

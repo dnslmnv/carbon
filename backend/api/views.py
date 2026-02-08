@@ -27,6 +27,7 @@ from .serializers import (
     PresignUploadRequestSerializer,
     PresignUploadResponseSerializer,
     ProductAttributeValueSerializer,
+    ProductDetailSerializer,
     ProductSerializer,
 )
 from storage import minio_client
@@ -124,7 +125,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = Product.objects.filter(is_active=True).select_related(
             "brand", "category"
-        )
+        ).prefetch_related("media", "attributes", "attributes__attribute")
         category = self.request.query_params.get("category")
         brand = self.request.query_params.get("brand")
         search = self.request.query_params.get("search")
@@ -176,6 +177,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     )
 
         return queryset.order_by("name").distinct()
+
+    def get_serializer_class(self):
+        if self.action in {"retrieve", "by_slug"}:
+            return ProductDetailSerializer
+        return ProductSerializer
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path=r"by-slug/(?P<slug>[^/.]+)")
+    def by_slug(self, request, slug=None):
+        product = get_object_or_404(self.get_queryset(), slug=slug)
+        serializer = self.get_serializer(product)
+        return Response(serializer.data)
 
 
 class CategoryAttributeViewSet(viewsets.ReadOnlyModelViewSet):
