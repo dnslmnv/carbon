@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from cart.models import Cart, CartItem
 from catalog.models import (
+    Banner,
     Brand,
     Category,
     CategoryAttribute,
@@ -43,7 +44,27 @@ class FileRecordSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "parent", "is_active", "sort_order"]
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "parent",
+            "image_url",
+            "is_active",
+            "sort_order",
+        ]
+
+
+class MainCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "image_url"]
+
+
+class BannerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Banner
+        fields = ["id", "name", "image_url"]
 
 
 class BrandSerializer(serializers.ModelSerializer):
