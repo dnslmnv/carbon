@@ -10,6 +10,7 @@ from .views import (
     CategoryViewSet,
     FileViewSet,
     HelloView,
+    CatalogPageView,
     OrderViewSet,
     ProductAttributeValueViewSet,
     ProductViewSet,
@@ -29,5 +30,6 @@ router.register(r"orders", OrderViewSet, basename="orders")
 
 urlpatterns = [
     path("hello/", HelloView.as_view()),
+    path("catalog-page/", CatalogPageView.as_view()),
     path("", include(router.urls)),
 ]

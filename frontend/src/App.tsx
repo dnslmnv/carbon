@@ -50,19 +50,74 @@ type MainCategoryResponse = {
 }
 
 type CatalogCategory = {
-  id: string
-  title: string
-  subcategories: string[]
+  id: number
+  name: string
+  slug: string
+  image_url: string
+  children: CatalogCategory[]
+}
+
+type CatalogBreadcrumb = {
+  id: number
+  name: string
+  slug: string
+}
+
+type CatalogFilterOption = {
+  value: string
+  label: string
+  count: number
+}
+
+type CatalogAttributeFilter = {
+  id: number
+  name: string
+  unit: string
+  data_type: string
+  filter_type: string
+  options: CatalogFilterOption[]
+  range: {
+    min: number
+    max: number
+  } | null
+}
+
+type CatalogFilters = {
+  brands: {
+    id: number
+    name: string
+    count: number
+  }[]
+  attributes: CatalogAttributeFilter[]
 }
 
 type CatalogProduct = {
-  id: string
-  title: string
+  id: number
+  name: string
+  slug: string
   price: string
-  availability: string
-  rating: number
-  reviews: number
-  image: string
+  brand: number
+  brand_name: string
+  stock_available: number
+  image_url: string
+}
+
+type CatalogPageResponse = {
+  category: {
+    id: number
+    name: string
+    slug: string
+  } | null
+  breadcrumbs: CatalogBreadcrumb[]
+  category_tree: CatalogCategory[]
+  filters: CatalogFilters
+  products: {
+    count: number
+    page: number
+    page_size: number
+    results: CatalogProduct[]
+  }
+  banners: BannerResponse[]
 }
 
 type CartItem = {
@@ -78,20 +133,6 @@ type CartItem = {
 }
 
 const formatPrice = (value: number) => `${value.toLocaleString('ru-RU')} руб.`
-
-const catalogBreadcrumbs = [
-  'Каталоги',
-  'Автохимия',
-  'Для ремонта авто',
-  'Для кузовного ремонта',
-  'Проникающие смазки',
-]
-
-const catalogTitle = 'Проникающие смазки'
-const catalogCount = 317
-
-const catalogBrands = ['LAVR', 'WD-40', 'ABRO', 'AXIOM', 'RUNWAY']
-const catalogVolumes = ['0.1', '0.4', '0.65', '1', '5']
 
 const cartItems: CartItem[] = [
   {
@@ -157,170 +198,6 @@ const productApplicability = [
   'Автозамки и петли дверей',
 ]
 
-const catalogProducts: CatalogProduct[] = [
-  {
-    id: 'lv-40',
-    title: 'LAVR Смазка многоцелевая LV-40',
-    price: 'от 257 руб.',
-    availability: 'В наличии 407 шт',
-    rating: 4.5,
-    reviews: 11,
-    image: '/categories/avtosvet.png',
-  },
-  {
-    id: 'lv-40-2',
-    title: 'LAVR LV-40 Multipurpose grease',
-    price: 'от 358 руб.',
-    availability: 'В наличии 56 шт',
-    rating: 4.8,
-    reviews: 33,
-    image: '/categories/aksessuary.png',
-  },
-  {
-    id: 'multi-key',
-    title: 'LAVR multifunctional fast liquid key',
-    price: 'от 377 руб.',
-    availability: 'В наличии 56 шт',
-    rating: 4.8,
-    reviews: 41,
-    image: '/categories/elektronika.png',
-  },
-  {
-    id: 'service-key',
-    title: 'LAVR SERVICE LIQUID KEY',
-    price: 'от 469 руб.',
-    availability: 'В наличии 875 шт',
-    rating: 4.8,
-    reviews: 54,
-    image: '/categories/tyuning.png',
-  },
-  {
-    id: 'cleaner',
-    title: 'Очиститель контактов быстрый',
-    price: 'от 229 руб.',
-    availability: 'В наличии 94 шт',
-    rating: 4.6,
-    reviews: 18,
-    image: '/categories/chekhly.png',
-  },
-  {
-    id: 'spray-penetrant',
-    title: 'Проникающая смазка усиленная',
-    price: 'от 319 руб.',
-    availability: 'В наличии 122 шт',
-    rating: 4.7,
-    reviews: 21,
-    image: '/categories/podlokotniki.png',
-  },
-  {
-    id: 'lubricant-pro',
-    title: 'Смазка аэрозольная PRO',
-    price: 'от 289 руб.',
-    availability: 'В наличии 63 шт',
-    rating: 4.4,
-    reviews: 9,
-    image: '/categories/plenka.png',
-  },
-  {
-    id: 'silicone',
-    title: 'Силиконовая смазка универсальная',
-    price: 'от 349 руб.',
-    availability: 'В наличии 88 шт',
-    rating: 4.9,
-    reviews: 67,
-    image: '/categories/avtosvet.png',
-  },
-]
-
-const catalogCategories: CatalogCategory[] = [
-  {
-    id: 'car-fitment',
-    title: 'Подбор по автомобилю',
-    subcategories: [
-      'По VIN',
-      'По марке и модели',
-      'По госномеру',
-      'По кузову',
-      'По двигателю',
-      'По каталогу',
-    ],
-  },
-  {
-    id: 'fluids',
-    title: 'Масла и жидкости',
-    subcategories: [
-      'Масло моторное',
-      'Масло трансмиссионное',
-      'Антифриз',
-      'Тормозная жидкость',
-      'Жидкость омывателя',
-      'Гидравлическая жидкость',
-      'Промывочные жидкости',
-      'Вода дистиллированная',
-    ],
-  },
-  {
-    id: 'tires',
-    title: 'Шины и диски',
-    subcategories: [
-      'Летние шины',
-      'Зимние шины',
-      'Всесезонные шины',
-      'Литые диски',
-      'Штампованные диски',
-      'Датчики давления',
-    ],
-  },
-  {
-    id: 'auto-chem',
-    title: 'Автохимия',
-    subcategories: [
-      'Очистители салона',
-      'Автошампуни',
-      'Полироли',
-      'Средства для стекол',
-      'Антикор',
-      'Ароматизаторы',
-    ],
-  },
-  {
-    id: 'accessories',
-    title: 'Аксессуары',
-    subcategories: [
-      'Коврики',
-      'Чехлы на сиденья',
-      'Видеорегистраторы',
-      'Держатели для телефона',
-      'Багажники',
-      'Оплетки руля',
-    ],
-  },
-  {
-    id: 'tools',
-    title: 'Инструменты и техника',
-    subcategories: [
-      'Домкраты',
-      'Наборы инструментов',
-      'Компрессоры',
-      'Зарядные устройства',
-      'Пылесосы',
-      'Мойки высокого давления',
-    ],
-  },
-  {
-    id: 'home',
-    title: 'Товары для дома',
-    subcategories: [
-      'Органайзеры',
-      'Лампы и свет',
-      'Аккумуляторы',
-      'Крепеж',
-      'Хранение',
-      'Сувениры',
-    ],
-  },
-]
-
 function App() {
   const isWipMode = import.meta.env.VITE_WIP_PAGE === '1'
 
@@ -342,12 +219,10 @@ function App() {
   const [query, setQuery] = useState('')
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
   const [page, setPage] = useState<'home' | 'catalog' | 'product' | 'cart'>('home')
-  const [activeCatalogId, setActiveCatalogId] = useState(
-    catalogCategories[1]?.id ?? catalogCategories[0]?.id ?? '',
-  )
-  const activeCatalog =
-    catalogCategories.find((category) => category.id === activeCatalogId) ??
-    catalogCategories[0]
+  const [activeCatalogId, setActiveCatalogId] = useState<number | null>(null)
+  const [catalogPage, setCatalogPage] = useState(1)
+  const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
+  const [catalogError, setCatalogError] = useState(false)
   const navigate = (nextPage: 'home' | 'catalog' | 'product' | 'cart') => {
     setPage(nextPage)
     setIsCatalogOpen(false)
@@ -418,6 +293,49 @@ function App() {
   useEffect(() => {
     let isActive = true
 
+    const loadCatalogData = async () => {
+      try {
+        const params = new URLSearchParams()
+        if (activeCatalogId) {
+          params.set('category', String(activeCatalogId))
+        }
+        params.set('page', String(catalogPage))
+        params.set('page_size', '9')
+
+        const response = await fetch(`${apiBaseUrl}/api/catalog-page/?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error('Failed to load catalog')
+        }
+        const data = (await response.json()) as CatalogPageResponse
+        if (!isActive) {
+          return
+        }
+        setCatalogData(data)
+        setCatalogError(false)
+        if (!activeCatalogId && data.category) {
+          setActiveCatalogId(data.category.id)
+        }
+      } catch {
+        if (isActive) {
+          setCatalogError(true)
+        }
+      }
+    }
+
+    loadCatalogData()
+
+    return () => {
+      isActive = false
+    }
+  }, [apiBaseUrl, activeCatalogId, catalogPage])
+
+  useEffect(() => {
+    setCatalogPage(1)
+  }, [activeCatalogId])
+
+  useEffect(() => {
+    let isActive = true
+
     const loadCategories = async () => {
       try {
         const response = await fetch(`${apiBaseUrl}/api/categories/main/`)
@@ -455,6 +373,25 @@ function App() {
       setCurrentSlide(0)
     }
   }, [currentSlide, slides.length])
+
+  const findCategoryById = (entries: CatalogCategory[], id: number | null) => {
+    if (!id) {
+      return null
+    }
+    for (const entry of entries) {
+      if (entry.id === id) {
+        return entry
+      }
+      const found = findCategoryById(entry.children, id)
+      if (found) {
+        return found
+      }
+    }
+    return null
+  }
+
+  const catalogTree = catalogData?.category_tree ?? []
+  const activeCatalog = findCategoryById(catalogTree, activeCatalogId)
 
   const footerSections = useMemo(
     () => [
@@ -596,13 +533,16 @@ function App() {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Каталоги запчастей</h2>
                 <div className="mt-4 space-y-2">
-                  {catalogCategories.map((category) => {
+                  {catalogTree.map((category) => {
                     const isActive = category.id === activeCatalogId
                     return (
                       <button
                         key={category.id}
                         type="button"
-                        onClick={() => setActiveCatalogId(category.id)}
+                        onClick={() => {
+                          setActiveCatalogId(category.id)
+                          navigate('catalog')
+                        }}
                         className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
                           isActive
                             ? 'bg-gray-100 text-gray-900'
@@ -611,7 +551,7 @@ function App() {
                       >
                         <span className="flex items-center gap-3">
                           <span className="h-10 w-10 rounded-lg bg-gray-900" aria-hidden />
-                          <span className="text-sm font-semibold">{category.title}</span>
+                          <span className="text-sm font-semibold">{category.name}</span>
                         </span>
                         <ChevronRight className="h-4 w-4 text-gray-400" aria-hidden />
                       </button>
@@ -621,15 +561,17 @@ function App() {
               </div>
 
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">{activeCatalog.title}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {activeCatalog?.name ?? 'Каталог'}
+                </h3>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {activeCatalog.subcategories.map((subcategory) => (
+                  {(activeCatalog?.children ?? []).map((subcategory) => (
                     <article
-                      key={subcategory}
+                      key={subcategory.id}
                       className="flex flex-col items-center gap-4 rounded-2xl bg-gray-50 p-4 text-center shadow-sm"
                     >
                       <span className="h-16 w-16 rounded-2xl bg-gray-900" aria-hidden />
-                      <p className="text-sm font-semibold text-gray-900">{subcategory}</p>
+                      <p className="text-sm font-semibold text-gray-900">{subcategory.name}</p>
                     </article>
                   ))}
                 </div>
@@ -700,14 +642,21 @@ function App() {
           <>
             <section className="mt-6 space-y-3">
               <p className="text-xs font-medium text-gray-500">
-                {catalogBreadcrumbs.join(' / ')}
+                {(catalogData?.breadcrumbs ?? []).map((crumb) => crumb.name).join(' / ')}
               </p>
               <div className="flex flex-wrap items-end gap-3">
                 <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                  {catalogTitle}
+                  {catalogData?.category?.name ?? 'Каталог'}
                 </h1>
-                <span className="text-sm text-gray-500">{catalogCount} товаров</span>
+                <span className="text-sm text-gray-500">
+                  {catalogData?.products.count ?? 0} товаров
+                </span>
               </div>
+              {catalogError ? (
+                <p className="text-sm font-medium text-red-600">
+                  Не удалось загрузить каталог. Проверьте соединение.
+                </p>
+              ) : null}
             </section>
 
             <section className="mt-5 grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -722,40 +671,40 @@ function App() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
-                    <span className="text-sm font-semibold text-gray-900">Высокий рейтинг</span>
-                    <input type="checkbox" className="h-4 w-4 accent-red-600" />
-                  </div>
-
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-gray-900">Производитель</h3>
                     <div className="space-y-2">
-                      {catalogBrands.map((brand) => (
-                        <label key={brand} className="flex items-center gap-2">
+                      {(catalogData?.filters.brands ?? []).map((brand) => (
+                        <label key={brand.id} className="flex items-center gap-2">
                           <input type="checkbox" className="h-4 w-4 accent-red-600" />
-                          <span>{brand}</span>
+                          <span>{brand.name}</span>
                         </label>
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-red-600 underline decoration-2 underline-offset-4 transition hover:text-red-700"
-                    >
-                      Посмотреть все
-                    </button>
                   </div>
 
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-900">Объем, л</h3>
-                    <div className="space-y-2">
-                      {catalogVolumes.map((volume) => (
-                        <label key={volume} className="flex items-center gap-2">
-                          <input type="checkbox" className="h-4 w-4 accent-red-600" />
-                          <span>{volume}</span>
-                        </label>
-                      ))}
+                  {(catalogData?.filters.attributes ?? []).map((attribute) => (
+                    <div key={attribute.id} className="space-y-2">
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        {attribute.name}
+                        {attribute.unit ? `, ${attribute.unit}` : ''}
+                      </h3>
+                      {attribute.range ? (
+                        <div className="text-xs text-gray-500">
+                          от {attribute.range.min} до {attribute.range.max}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {attribute.options.map((option) => (
+                            <label key={option.value} className="flex items-center gap-2">
+                              <input type="checkbox" className="h-4 w-4 accent-red-600" />
+                              <span>{option.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  ))}
                 </div>
               </aside>
 
@@ -787,43 +736,71 @@ function App() {
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {catalogProducts.map((product) => (
+                  {(catalogData?.products.results ?? []).map((product) => (
                     <article
                       key={product.id}
                       className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100"
                     >
                       <div className="flex aspect-square items-center justify-center rounded-xl bg-gray-100">
                         <img
-                          src={product.image}
-                          alt={product.title}
+                          src={product.image_url || '/categories/avtosvet.png'}
+                          alt={product.name}
                           className="h-28 w-28 object-contain"
                           loading="lazy"
                         />
                       </div>
                       <div className="mt-3 space-y-2">
                         <p className="text-xs font-semibold text-emerald-600">
-                          {product.availability}
+                          {product.stock_available > 0
+                            ? `В наличии ${product.stock_available} шт`
+                            : 'Под заказ'}
                         </p>
-                        <h3 className="text-sm font-semibold text-gray-900">
-                          {product.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span className="inline-flex items-center gap-1 text-red-600">
-                            <Star className="h-3 w-3" aria-hidden />
-                            {product.rating.toFixed(1)}
-                          </span>
-                          <span>{product.reviews} оценок</span>
-                        </div>
+                        <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
+                        <p className="text-xs text-gray-500">{product.brand_name}</p>
                         <button
                           type="button"
                           onClick={() => navigate('product')}
                           className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                         >
-                          {product.price}
+                          от {formatPrice(Number(product.price))}
                         </button>
                       </div>
                     </article>
                   ))}
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100">
+                  <span>
+                    Страница {catalogData?.products.page ?? 1} из{' '}
+                    {catalogData?.products.page_size
+                      ? Math.ceil(
+                          (catalogData?.products.count ?? 0) / catalogData.products.page_size,
+                        )
+                      : 1}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 disabled:opacity-50"
+                      onClick={() => setCatalogPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={(catalogData?.products.page ?? 1) <= 1}
+                    >
+                      Назад
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 disabled:opacity-50"
+                      onClick={() => setCatalogPage((prev) => prev + 1)}
+                      disabled={
+                        (catalogData?.products.page ?? 1) >=
+                        Math.ceil(
+                          (catalogData?.products.count ?? 0) /
+                            (catalogData?.products.page_size || 1),
+                        )
+                      }
+                    >
+                      Вперед
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>
