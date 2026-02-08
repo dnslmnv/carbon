@@ -11,7 +11,6 @@ import {
   Minus,
   MapPin,
   Menu,
-  MoreHorizontal,
   Package,
   Percent,
   PhoneCall,
@@ -184,7 +183,9 @@ type CatalogPageResponse = {
 }
 
 type CartItem = {
-  id: string
+  id: number
+  cartId: number
+  productId: number
   title: string
   sku: string
   description: string
@@ -193,34 +194,38 @@ type CartItem = {
   quantity: number
   image: string
   eta: string
+  stockAvailable: number
 }
 
 const formatPrice = (value: number) => `${value.toLocaleString('ru-RU')} руб.`
+type CartProduct = {
+  id: number
+  name: string
+  slug: string
+  description: string
+  price: string
+  brand: number
+  category: number
+  stock_available: number
+  media: ProductMedia[]
+}
 
-const cartItems: CartItem[] = [
-  {
-    id: 'cordiant',
-    title: 'CORDIANT',
-    sku: '686193680',
-    description: 'Шина зимняя шип. 185/65 R14 Snow Cross 2',
-    meta: 'Дистрибьютор',
-    price: 5791,
-    quantity: 1,
-    image: '/categories/avtosvet.png',
-    eta: '9 рабочих дней',
-  },
-  {
-    id: 'lavr',
-    title: 'LAVR Смазка многоцелевая LV-40',
-    sku: 'LN1496',
-    description: 'Проникающая смазка аэрозольная 0.1 л',
-    meta: 'В наличии 407 шт',
-    price: 257,
-    quantity: 2,
-    image: '/categories/elektronika.png',
-    eta: '1 рабочий день',
-  },
-]
+type CartItemResponse = {
+  id: number
+  cart: number
+  product: CartProduct
+  quantity: number
+  price_snapshot: string
+}
+
+type CartResponse = {
+  id: number
+  user: number | null
+  session_id: string
+  created_at: string
+  updated_at: string
+  items: CartItemResponse[]
+}
 
 const productRating = 4.5
 const productReviews = 12
@@ -267,6 +272,27 @@ function App() {
   const [productData, setProductData] = useState<ProductDetail | null>(null)
   const [productError, setProductError] = useState(false)
   const [productLoading, setProductLoading] = useState(false)
+  const [cartId, setCartId] = useState<number | null>(null)
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [cartLoading, setCartLoading] = useState(false)
+  const [cartError, setCartError] = useState<string | null>(null)
+  const [cartActionError, setCartActionError] = useState<string | null>(null)
+  const [cartActionLoading, setCartActionLoading] = useState(false)
+  const [cartItemUpdatingId, setCartItemUpdatingId] = useState<number | null>(null)
+  const [sessionId] = useState(() => {
+    if (typeof window === 'undefined') {
+      return ''
+    }
+    const stored = window.localStorage.getItem('cart_session_id')
+    if (stored) {
+      return stored
+    }
+    const generated =
+      globalThis.crypto?.randomUUID?.() ??
+      `session-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    window.localStorage.setItem('cart_session_id', generated)
+    return generated
+  })
   const navigate = (nextPage: 'home' | 'catalog' | 'product' | 'cart') => {
     setPage(nextPage)
     setIsCatalogOpen(false)
@@ -282,6 +308,134 @@ function App() {
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
   const [slides, setSlides] = useState<BannerSlide[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
+
+  const mapCartItem = (item: CartItemResponse): CartItem => {
+    const product = item.product
+    const image = product.media?.[0]?.file_url || '/categories/avtosvet.png'
+    const stockAvailable = product.stock_available ?? 0
+    return {
+      id: item.id,
+      cartId: item.cart,
+      productId: product.id,
+      title: product.name,
+      sku: product.slug || `#${product.id}`,
+      description: product.description || 'Описание товара',
+      meta: stockAvailable > 0 ? `В наличии ${stockAvailable} шт` : 'Под заказ',
+      price: Number(item.price_snapshot),
+      quantity: item.quantity,
+      image,
+      eta: stockAvailable > 0 ? '1 рабочий день' : '7 рабочих дней',
+      stockAvailable,
+    }
+  }
+
+  const createCart = async () => {
+    const response = await fetch(`${apiBaseUrl}/api/carts/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    })
+    if (!response.ok) {
+      throw new Error('Failed to create cart')
+    }
+    return (await response.json()) as CartResponse
+  }
+
+  const ensureCart = async () => {
+    if (cartId) {
+      return { id: cartId, items: cartItems }
+    }
+    const response = await fetch(`${apiBaseUrl}/api/carts/?session_id=${sessionId}`)
+    if (response.ok) {
+      const carts = (await response.json()) as CartResponse[]
+      if (carts[0]) {
+        const mappedItems = (carts[0].items ?? []).map(mapCartItem)
+        setCartId(carts[0].id)
+        setCartItems(mappedItems)
+        return { id: carts[0].id, items: mappedItems }
+      }
+    }
+    const created = await createCart()
+    const mappedItems = (created.items ?? []).map(mapCartItem)
+    setCartId(created.id)
+    setCartItems(mappedItems)
+    return { id: created.id, items: mappedItems }
+  }
+
+  const updateCartItemQuantity = async (item: CartItem, nextQuantity: number) => {
+    if (nextQuantity <= 0) {
+      await removeCartItem(item.id)
+      return
+    }
+    setCartItemUpdatingId(item.id)
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/cart-items/${item.id}/?session_id=${sessionId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: nextQuantity }),
+        },
+      )
+      if (!response.ok) {
+        throw new Error('Failed to update cart item')
+      }
+      const updated = (await response.json()) as CartItemResponse
+      setCartItems((prev) => prev.map((line) => (line.id === item.id ? mapCartItem(updated) : line)))
+    } finally {
+      setCartItemUpdatingId(null)
+    }
+  }
+
+  const removeCartItem = async (itemId: number) => {
+    setCartItemUpdatingId(itemId)
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/cart-items/${itemId}/?session_id=${sessionId}`,
+        { method: 'DELETE' },
+      )
+      if (!response.ok) {
+        throw new Error('Failed to remove cart item')
+      }
+      setCartItems((prev) => prev.filter((line) => line.id !== itemId))
+    } finally {
+      setCartItemUpdatingId(null)
+    }
+  }
+
+  const addToCart = async () => {
+    if (!productData) {
+      return
+    }
+    setCartActionLoading(true)
+    setCartActionError(null)
+    try {
+      const { id: activeCartId, items } = await ensureCart()
+      const existing = items.find((line) => line.productId === productData.id)
+      if (existing) {
+        await updateCartItemQuantity(existing, existing.quantity + 1)
+        return
+      }
+      const response = await fetch(`${apiBaseUrl}/api/cart-items/?session_id=${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cart: activeCartId,
+          product_id: productData.id,
+          quantity: 1,
+        }),
+      })
+      if (!response.ok) {
+        throw new Error('Failed to add cart item')
+      }
+      const createdItem = (await response.json()) as CartItemResponse
+      setCartItems((prev) => [...prev, mapCartItem(createdItem)])
+    } catch {
+      setCartActionError('Не удалось добавить товар в корзину.')
+    } finally {
+      setCartActionLoading(false)
+    }
+  }
 
   const handlePrev = () => {
     if (!slides.length) {
@@ -300,6 +454,40 @@ function App() {
 
   useEffect(() => {
     let isActive = true
+
+    const loadCart = async () => {
+      if (!apiBaseUrl || !sessionId) {
+        return
+      }
+      setCartLoading(true)
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/carts/?session_id=${sessionId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch cart')
+        }
+        const carts = (await response.json()) as CartResponse[]
+        let cart = carts[0]
+        if (!cart) {
+          cart = await createCart()
+        }
+        if (!isActive) {
+          return
+        }
+        setCartId(cart.id)
+        setCartItems((cart.items ?? []).map(mapCartItem))
+        setCartError(null)
+      } catch {
+        if (isActive) {
+          setCartError('Не удалось загрузить корзину.')
+        }
+      } finally {
+        if (isActive) {
+          setCartLoading(false)
+        }
+      }
+    }
+
+    loadCart()
 
     const loadBanners = async () => {
       try {
@@ -999,9 +1187,11 @@ function App() {
                     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                       <button
                         type="button"
+                        onClick={addToCart}
+                        disabled={cartActionLoading || !productData}
                         className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                       >
-                        {productPrice}
+                        {cartActionLoading ? 'Добавляем…' : `В корзину за ${productPrice}`}
                       </button>
                       <p className="mt-2 text-center text-xs font-semibold text-emerald-600">
                         {productAvailability}
@@ -1014,6 +1204,11 @@ function App() {
                       {productError ? (
                         <p className="mt-2 text-center text-xs text-red-600">
                           Не удалось загрузить данные товара.
+                        </p>
+                      ) : null}
+                      {cartActionError ? (
+                        <p className="mt-2 text-center text-xs text-red-600">
+                          {cartActionError}
                         </p>
                       ) : null}
                     </div>
@@ -1130,6 +1325,17 @@ function App() {
                   </div>
 
                   <div className="mt-4 space-y-4">
+                    {cartLoading ? (
+                      <p className="text-sm text-gray-500">Загружаем корзину...</p>
+                    ) : null}
+                    {cartError ? (
+                      <p className="text-sm text-red-600">{cartError}</p>
+                    ) : null}
+                    {!cartLoading && !cartError && cartItems.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        В корзине пока пусто. Добавьте товары из каталога.
+                      </p>
+                    ) : null}
                     {cartItems.map((item) => (
                       <div
                         key={item.id}
@@ -1171,6 +1377,8 @@ function App() {
                                 type="button"
                                 className="grid h-7 w-7 place-items-center rounded-full text-gray-500 hover:text-gray-700"
                                 aria-label="Уменьшить количество"
+                                onClick={() => updateCartItemQuantity(item, item.quantity - 1)}
+                                disabled={cartItemUpdatingId === item.id}
                               >
                                 <Minus className="h-4 w-4" aria-hidden />
                               </button>
@@ -1181,6 +1389,8 @@ function App() {
                                 type="button"
                                 className="grid h-7 w-7 place-items-center rounded-full text-gray-500 hover:text-gray-700"
                                 aria-label="Увеличить количество"
+                                onClick={() => updateCartItemQuantity(item, item.quantity + 1)}
+                                disabled={cartItemUpdatingId === item.id}
                               >
                                 <Plus className="h-4 w-4" aria-hidden />
                               </button>
@@ -1188,9 +1398,11 @@ function App() {
                             <button
                               type="button"
                               className="rounded-full p-2 text-gray-400 transition hover:text-gray-600"
-                              aria-label="Действия"
+                              aria-label="Удалить товар"
+                              onClick={() => removeCartItem(item.id)}
+                              disabled={cartItemUpdatingId === item.id}
                             >
-                              <MoreHorizontal className="h-4 w-4" aria-hidden />
+                              <Trash2 className="h-4 w-4" aria-hidden />
                             </button>
                           </div>
                         </div>

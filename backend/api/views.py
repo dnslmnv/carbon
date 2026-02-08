@@ -31,6 +31,7 @@ from .serializers import (
     ProductSerializer,
 )
 from storage import minio_client
+from .permissions import CartAccessPermission
 
 
 class HelloView(APIView):
@@ -441,6 +442,7 @@ class CatalogPageView(APIView):
 
 class CartViewSet(viewsets.ModelViewSet):
     serializer_class = CartSerializer
+    permission_classes = [CartAccessPermission]
 
     def get_queryset(self):
         queryset = Cart.objects.all()
@@ -461,6 +463,7 @@ class CartViewSet(viewsets.ModelViewSet):
 
 class CartItemViewSet(viewsets.ModelViewSet):
     serializer_class = CartItemSerializer
+    permission_classes = [CartAccessPermission]
 
     def get_queryset(self):
         queryset = CartItem.objects.select_related("cart", "product")
