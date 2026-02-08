@@ -1,4 +1,4 @@
-﻿import { type ReactNode, useMemo, useState } from 'react'
+﻿import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   ChevronDown,
@@ -29,6 +29,24 @@ import {
 type Category = {
   title: string
   image: string
+}
+
+type BannerSlide = {
+  id: number
+  src: string
+  alt: string
+}
+
+type BannerResponse = {
+  id: number
+  name: string
+  image_url: string
+}
+
+type MainCategoryResponse = {
+  id: number
+  name: string
+  image_url: string
 }
 
 type CatalogCategory = {
@@ -342,31 +360,101 @@ function App() {
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
   const cartBonus = Math.round(cartSubtotal * 0.05)
-  const slides = useMemo(
-    () => [
-      { id: 1, src: '/banners/1.jpg', alt: 'Баннер 1' },
-      { id: 2, src: '/banners/2.jpg', alt: 'Баннер 2' },
-      { id: 3, src: '/banners/3.jpg', alt: 'Баннер 3' },
-    ],
-    [],
-  )
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+  const [slides, setSlides] = useState<BannerSlide[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
 
-  const handlePrev = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
-  const handleNext = () => setCurrentSlide((prev) => (prev + 1) % slides.length)
+  const handlePrev = () => {
+    if (!slides.length) {
+      return
+    }
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+  }
+  const handleNext = () => {
+    if (!slides.length) {
+      return
+    }
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
+  }
 
-  const categories = useMemo<Category[]>(
-    () => [
-      { title: 'Автосвет', image: '/categories/avtosvet.png' },
-      { title: 'Аксессуары', image: '/categories/aksessuary.png' },
-      { title: 'Пленка', image: '/categories/plenka.png' },
-      { title: 'Подлокотники', image: '/categories/podlokotniki.png' },
-      { title: 'Чехлы', image: '/categories/chekhly.png' },
-      { title: 'Электроника', image: '/categories/elektronika.png' },
-      { title: 'Тюнинг', image: '/categories/tyuning.png' },
-    ],
-    [],
-  )
+  const [categories, setCategories] = useState<Category[]>([])
+
+  useEffect(() => {
+    let isActive = true
+
+    const loadBanners = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/banners/`)
+        if (!response.ok) {
+          return
+        }
+        const data = (await response.json()) as BannerResponse[]
+        if (!isActive) {
+          return
+        }
+        setSlides(
+          data
+            .filter((banner) => banner.image_url)
+            .map((banner, index) => ({
+              id: banner.id,
+              src: banner.image_url,
+              alt: banner.name || `Баннер ${index + 1}`,
+            })),
+        )
+      } catch {
+        if (isActive) {
+          setSlides([])
+        }
+      }
+    }
+
+    loadBanners()
+
+    return () => {
+      isActive = false
+    }
+  }, [apiBaseUrl])
+
+  useEffect(() => {
+    let isActive = true
+
+    const loadCategories = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/categories/main/`)
+        if (!response.ok) {
+          return
+        }
+        const data = (await response.json()) as MainCategoryResponse[]
+        if (!isActive) {
+          return
+        }
+        setCategories(
+          data
+            .filter((category) => category.image_url)
+            .map((category) => ({
+              title: category.name,
+              image: category.image_url,
+            })),
+        )
+      } catch {
+        if (isActive) {
+          setCategories([])
+        }
+      }
+    }
+
+    loadCategories()
+
+    return () => {
+      isActive = false
+    }
+  }, [apiBaseUrl])
+
+  useEffect(() => {
+    if (currentSlide >= slides.length) {
+      setCurrentSlide(0)
+    }
+  }, [currentSlide, slides.length])
 
   const footerSections = useMemo(
     () => [
