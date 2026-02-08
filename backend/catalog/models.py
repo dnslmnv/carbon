@@ -4,6 +4,7 @@ from django.db import models
 class Category(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
+    image_url = models.URLField(blank=True)
     parent = models.ForeignKey(
         "self",
         null=True,
@@ -102,3 +103,11 @@ class ProductAttributeValue(models.Model):
 
     class Meta:
         unique_together = ("product", "attribute")
+
+
+class Banner(models.Model):
+    name = models.CharField(max_length=200)
+    image_url = models.URLField()
+
+    def __str__(self) -> str:
+        return self.name

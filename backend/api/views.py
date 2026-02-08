@@ -6,17 +6,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cart.models import Cart, CartItem
-from catalog.models import Brand, Category, CategoryAttribute, Product, ProductAttributeValue
+from catalog.models import Banner, Brand, Category, CategoryAttribute, Product, ProductAttributeValue
 from orders.models import Order
 
 from .models import FileRecord
 from .serializers import (
     BrandSerializer,
+    BannerSerializer,
     CartItemSerializer,
     CartSerializer,
     CategoryAttributeSerializer,
     CategorySerializer,
     FileRecordSerializer,
+    MainCategorySerializer,
     OrderSerializer,
     PresignDownloadResponseSerializer,
     PresignUploadRequestSerializer,
@@ -90,11 +92,26 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.filter(is_active=True).order_by("sort_order", "name")
     serializer_class = CategorySerializer
 
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path="main")
+    def main_categories(self, request):
+        queryset = Category.objects.filter(
+            is_active=True,
+            parent__isnull=True,
+        ).order_by("sort_order", "name")
+        serializer = MainCategorySerializer(queryset, many=True)
+        return Response(serializer.data)
+
 
 class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     queryset = Brand.objects.all().order_by("name")
     serializer_class = BrandSerializer
+
+
+class BannerViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [AllowAny]
+    queryset = Banner.objects.all().order_by("name")
+    serializer_class = BannerSerializer
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
