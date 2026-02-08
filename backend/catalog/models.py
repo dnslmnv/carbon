@@ -4,7 +4,7 @@ from django.db import models
 class Category(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
-    image_url = models.URLField(blank=True)
+    image_url = models.ImageField(upload_to="categories/", blank=True)
     parent = models.ForeignKey(
         "self",
         null=True,
@@ -57,7 +57,7 @@ class Product(models.Model):
 
 class ProductMedia(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="media")
-    file_url = models.URLField()
+    file_url = models.ImageField(upload_to="products/")
     alt_text = models.CharField(max_length=255, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
 
@@ -107,7 +107,7 @@ class ProductAttributeValue(models.Model):
 
 class Banner(models.Model):
     name = models.CharField(max_length=200)
-    image_url = models.URLField()
+    image_url = models.ImageField(upload_to="banners/")
 
     def __str__(self) -> str:
         return self.name
