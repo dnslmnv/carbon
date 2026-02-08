@@ -142,6 +142,31 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
 
+class CatalogProductSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    brand_name = serializers.CharField(source="brand.name", read_only=True)
+    stock_available = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "price",
+            "brand",
+            "brand_name",
+            "stock_available",
+            "image_url",
+        ]
+
+    def get_image_url(self, obj):
+        media = obj.media.order_by("sort_order").first()
+        if media and media.file_url:
+            return media.file_url.url
+        return ""
+
+
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(

@@ -1,4 +1,6 @@
-from django.db.models import Q, F
+from django.core.paginator import Paginator
+from django.db.models import Q, F, Count, Min, Max
+from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -15,6 +17,7 @@ from .serializers import (
     BannerSerializer,
     CartItemSerializer,
     CartSerializer,
+    CatalogProductSerializer,
     CategoryAttributeSerializer,
     CategorySerializer,
     FileRecordSerializer,
@@ -197,6 +200,231 @@ class ProductAttributeValueViewSet(viewsets.ReadOnlyModelViewSet):
         if product:
             queryset = queryset.filter(product_id=product)
         return queryset
+
+
+class CatalogPageView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        categories = list(
+            Category.objects.filter(is_active=True).order_by("sort_order", "name")
+        )
+        if not categories:
+            return Response(
+                {
+                    "category": None,
+                    "breadcrumbs": [],
+                    "category_tree": [],
+                    "filters": {"brands": [], "attributes": []},
+                    "products": {
+                        "count": 0,
+                        "page": 1,
+                        "page_size": 0,
+                        "results": [],
+                    },
+                    "banners": BannerSerializer(Banner.objects.all().order_by("name"), many=True).data,
+                }
+            )
+
+        category_id = request.query_params.get("category")
+        if category_id:
+            category = get_object_or_404(Category, pk=category_id, is_active=True)
+        else:
+            category = categories[0]
+
+        categories_by_parent = {}
+        for item in categories:
+            parent_id = item.parent_id
+            categories_by_parent.setdefault(parent_id, []).append(item)
+
+        def build_tree(parent_id=None):
+            tree = []
+            for item in categories_by_parent.get(parent_id, []):
+                tree.append(
+                    {
+                        "id": item.id,
+                        "name": item.name,
+                        "slug": item.slug,
+                        "image_url": item.image_url.url if item.image_url else "",
+                        "children": build_tree(item.id),
+                    }
+                )
+            return tree
+
+        def collect_descendant_ids(start_id):
+            ids = []
+            stack = [start_id]
+            while stack:
+                current_id = stack.pop()
+                ids.append(current_id)
+                for child in categories_by_parent.get(current_id, []):
+                    stack.append(child.id)
+            return ids
+
+        breadcrumbs = []
+        current = category
+        while current:
+            breadcrumbs.append({"id": current.id, "name": current.name, "slug": current.slug})
+            current = current.parent
+        breadcrumbs.reverse()
+
+        descendant_ids = collect_descendant_ids(category.id)
+        base_products = (
+            Product.objects.filter(is_active=True, category_id__in=descendant_ids)
+            .select_related("brand", "category")
+            .prefetch_related("media", "attributes", "attributes__attribute")
+        )
+
+        filtered_products = base_products
+        brands = request.query_params.getlist("brand")
+        search = request.query_params.get("search")
+        min_price = request.query_params.get("min_price")
+        max_price = request.query_params.get("max_price")
+        in_stock = request.query_params.get("in_stock")
+        attribute_filters = request.query_params.getlist("attribute")
+
+        if brands:
+            filtered_products = filtered_products.filter(brand_id__in=brands)
+        if search:
+            filtered_products = filtered_products.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        if min_price:
+            filtered_products = filtered_products.filter(price__gte=min_price)
+        if max_price:
+            filtered_products = filtered_products.filter(price__lte=max_price)
+        if in_stock in {"1", "true", "yes"}:
+            filtered_products = filtered_products.filter(stock_quantity__gt=F("stock_reserved"))
+
+        for entry in attribute_filters:
+            if ":" not in entry:
+                continue
+            attribute_id, raw_value = entry.split(":", 1)
+            if not attribute_id:
+                continue
+
+            value = raw_value.strip()
+            if value.lower() in {"true", "false"}:
+                filtered_products = filtered_products.filter(
+                    attributes__attribute_id=attribute_id,
+                    attributes__value_boolean=value.lower() == "true",
+                )
+            else:
+                try:
+                    number_value = float(value)
+                except ValueError:
+                    filtered_products = filtered_products.filter(
+                        attributes__attribute_id=attribute_id,
+                        attributes__value_string=value,
+                    )
+                else:
+                    filtered_products = filtered_products.filter(
+                        attributes__attribute_id=attribute_id,
+                        attributes__value_number=number_value,
+                    )
+
+        filtered_products = filtered_products.order_by("name").distinct()
+
+        try:
+            page_number = int(request.query_params.get("page", 1))
+        except (TypeError, ValueError):
+            page_number = 1
+        try:
+            page_size = int(request.query_params.get("page_size", 9))
+        except (TypeError, ValueError):
+            page_size = 9
+        paginator = Paginator(filtered_products, page_size)
+        page_obj = paginator.get_page(page_number)
+
+        brand_filters = (
+            base_products.values("brand_id", "brand__name")
+            .annotate(count=Count("id"))
+            .order_by("brand__name")
+        )
+
+        attribute_filters_payload = []
+        for attribute in CategoryAttribute.objects.filter(
+            category=category, is_filterable=True
+        ).order_by("name"):
+            values_queryset = ProductAttributeValue.objects.filter(
+                product__in=base_products, attribute=attribute
+            )
+            payload = {
+                "id": attribute.id,
+                "name": attribute.name,
+                "unit": attribute.unit,
+                "data_type": attribute.data_type,
+                "filter_type": attribute.filter_type,
+                "options": [],
+                "range": None,
+            }
+
+            if attribute.data_type == CategoryAttribute.DataType.BOOLEAN:
+                options = (
+                    values_queryset.exclude(value_boolean__isnull=True)
+                    .values("value_boolean")
+                    .annotate(count=Count("id"))
+                    .order_by("value_boolean")
+                )
+                payload["options"] = [
+                    {
+                        "value": str(option["value_boolean"]).lower(),
+                        "label": "Да" if option["value_boolean"] else "Нет",
+                        "count": option["count"],
+                    }
+                    for option in options
+                ]
+            elif attribute.data_type == CategoryAttribute.DataType.NUMBER:
+                range_values = values_queryset.aggregate(
+                    min_value=Min("value_number"), max_value=Max("value_number")
+                )
+                if range_values["min_value"] is not None:
+                    payload["range"] = {
+                        "min": float(range_values["min_value"]),
+                        "max": float(range_values["max_value"]),
+                    }
+            else:
+                options = (
+                    values_queryset.exclude(value_string="")
+                    .values("value_string")
+                    .annotate(count=Count("id"))
+                    .order_by("value_string")
+                )
+                payload["options"] = [
+                    {
+                        "value": option["value_string"],
+                        "label": option["value_string"],
+                        "count": option["count"],
+                    }
+                    for option in options
+                ]
+
+            attribute_filters_payload.append(payload)
+
+        response_payload = {
+            "category": {"id": category.id, "name": category.name, "slug": category.slug},
+            "breadcrumbs": breadcrumbs,
+            "category_tree": build_tree(None),
+            "filters": {
+                "brands": [
+                    {
+                        "id": item["brand_id"],
+                        "name": item["brand__name"],
+                        "count": item["count"],
+                    }
+                    for item in brand_filters
+                ],
+                "attributes": attribute_filters_payload,
+            },
+            "products": {
+                "count": paginator.count,
+                "page": page_obj.number,
+                "page_size": page_size,
+                "results": CatalogProductSerializer(page_obj.object_list, many=True).data,
+            },
+            "banners": BannerSerializer(Banner.objects.all().order_by("name"), many=True).data,
+        }
+        return Response(response_payload)
 
 
 class CartViewSet(viewsets.ModelViewSet):
