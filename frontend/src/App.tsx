@@ -195,6 +195,11 @@ type CartItem = {
   eta: string
 }
 
+type AuthTokens = {
+  access: string
+  refresh: string
+}
+
 const formatPrice = (value: number) => `${value.toLocaleString('ru-RU')} руб.`
 
 const cartItems: CartItem[] = [
@@ -256,9 +261,31 @@ function App() {
     )
   }
 
+  const authStorageKey = 'carbon69.auth.tokens'
+  const authUsernameKey = 'carbon69.auth.username'
+  const [authTokens, setAuthTokens] = useState<AuthTokens | null>(() => {
+    try {
+      const stored = localStorage.getItem(authStorageKey)
+      if (!stored) {
+        return null
+      }
+      return JSON.parse(stored) as AuthTokens
+    } catch {
+      return null
+    }
+  })
+  const [authUsername, setAuthUsername] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(authUsernameKey)
+    } catch {
+      return null
+    }
+  })
+  const isAuthenticated = Boolean(authTokens)
+
   const [query, setQuery] = useState('')
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
-  const [page, setPage] = useState<'home' | 'catalog' | 'product' | 'cart'>('home')
+  const [page, setPage] = useState<'home' | 'catalog' | 'product' | 'cart' | 'login'>('home')
   const [activeCatalogId, setActiveCatalogId] = useState<number | null>(null)
   const [catalogPage, setCatalogPage] = useState(1)
   const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
@@ -267,7 +294,7 @@ function App() {
   const [productData, setProductData] = useState<ProductDetail | null>(null)
   const [productError, setProductError] = useState(false)
   const [productLoading, setProductLoading] = useState(false)
-  const navigate = (nextPage: 'home' | 'catalog' | 'product' | 'cart') => {
+  const navigate = (nextPage: 'home' | 'catalog' | 'product' | 'cart' | 'login') => {
     setPage(nextPage)
     setIsCatalogOpen(false)
     window.scrollTo(0, 0)
@@ -275,6 +302,7 @@ function App() {
   const isCatalogPage = page === 'catalog'
   const isProductPage = page === 'product'
   const isCartPage = page === 'cart'
+  const isLoginPage = page === 'login'
   const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
@@ -282,6 +310,63 @@ function App() {
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
   const [slides, setSlides] = useState<BannerSlide[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginLoading, setLoginLoading] = useState(false)
+
+  const storeAuth = (tokens: AuthTokens, username: string) => {
+    setAuthTokens(tokens)
+    setAuthUsername(username)
+    try {
+      localStorage.setItem(authStorageKey, JSON.stringify(tokens))
+      localStorage.setItem(authUsernameKey, username)
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  const clearAuth = () => {
+    setAuthTokens(null)
+    setAuthUsername(null)
+    try {
+      localStorage.removeItem(authStorageKey)
+      localStorage.removeItem(authUsernameKey)
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setLoginLoading(true)
+    setLoginError(null)
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/token/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: loginUsername,
+          password: loginPassword,
+        }),
+      })
+      if (!response.ok) {
+        throw new Error('Неверный логин или пароль')
+      }
+      const data = (await response.json()) as AuthTokens
+      storeAuth(data, loginUsername)
+      setLoginPassword('')
+      navigate('home')
+    } catch (error) {
+      if (error instanceof Error) {
+        setLoginError(error.message)
+      } else {
+        setLoginError('Не удалось войти. Попробуйте позже.')
+      }
+    } finally {
+      setLoginLoading(false)
+    }
+  }
 
   const handlePrev = () => {
     if (!slides.length) {
@@ -621,9 +706,21 @@ function App() {
               <NavIconButton label="Заказы">
                 <Package className="h-5 w-5" aria-hidden />
               </NavIconButton>
-              <NavIconButton label="Войти">
-                <LogIn className="h-5 w-5" aria-hidden />
-              </NavIconButton>
+              {isAuthenticated ? (
+                <NavIconButton
+                  label="Выйти"
+                  onClick={() => {
+                    clearAuth()
+                    navigate('home')
+                  }}
+                >
+                  <LogIn className="h-5 w-5" aria-hidden />
+                </NavIconButton>
+              ) : (
+                <NavIconButton label="Войти" onClick={() => navigate('login')}>
+                  <LogIn className="h-5 w-5" aria-hidden />
+                </NavIconButton>
+              )}
             </div>
           </div>
 
@@ -656,7 +753,74 @@ function App() {
           </div>
         </header>
 
-        {isCatalogOpen ? (
+        {isLoginPage ? (
+          <section className="mt-6 flex items-center justify-center">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-gray-900">Вход</h2>
+                <p className="text-sm text-gray-600">
+                  Используйте логин и пароль, чтобы получить доступ к заказам и персональным данным.
+                </p>
+              </div>
+
+              {isAuthenticated ? (
+                <div className="mt-5 space-y-4 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900 ring-1 ring-emerald-200">
+                  <p className="font-semibold">Вы уже вошли в аккаунт.</p>
+                  {authUsername ? <p>Пользователь: {authUsername}</p> : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearAuth()
+                      navigate('home')
+                    }}
+                    className="w-full rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
+                  >
+                    Выйти
+                  </button>
+                </div>
+              ) : (
+                <form className="mt-5 space-y-4" onSubmit={handleLoginSubmit}>
+                  <label className="block text-sm font-semibold text-gray-800">
+                    Логин
+                    <input
+                      type="text"
+                      value={loginUsername}
+                      onChange={(event) => setLoginUsername(event.target.value)}
+                      placeholder="Введите логин"
+                      autoComplete="username"
+                      required
+                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-gray-800">
+                    Пароль
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      placeholder="Введите пароль"
+                      autoComplete="current-password"
+                      required
+                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    />
+                  </label>
+                  {loginError ? (
+                    <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+                      {loginError}
+                    </div>
+                  ) : null}
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                  >
+                    {loginLoading ? 'Входим...' : 'Войти'}
+                  </button>
+                </form>
+              )}
+            </div>
+          </section>
+        ) : isCatalogOpen ? (
           <section
             id="catalog-panel"
             className="mt-4 rounded-2xl bg-white p-5 shadow-md shadow-gray-100"
