@@ -208,8 +208,20 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     def validate_cart(self, cart):
         request = self.context.get("request")
-        if request and request.user.is_authenticated and cart.user_id != request.user.id:
-            raise serializers.ValidationError("Cart does not belong to the authenticated user.")
+        if not request:
+            return cart
+        user = request.user
+        if user.is_authenticated:
+            if cart.user_id != user.id:
+                raise serializers.ValidationError(
+                    "Cart does not belong to the authenticated user."
+                )
+            return cart
+        session_id = request.query_params.get("session_id") or request.data.get("session_id")
+        if not session_id:
+            raise serializers.ValidationError("Session id is required for anonymous cart access.")
+        if cart.session_id != session_id:
+            raise serializers.ValidationError("Cart does not belong to the active session.")
         return cart
 
     def create(self, validated_data):
@@ -235,6 +247,10 @@ class CartSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             attrs.pop("session_id", None)
+        elif not attrs.get("session_id"):
+            raise serializers.ValidationError(
+                {"session_id": "Session id is required for anonymous carts."}
+            )
         return super().validate(attrs)
 
 
