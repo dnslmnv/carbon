@@ -47,10 +47,11 @@ class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
         if not phone_number or not password:
             raise self.fail("no_active_account")
 
-        try:
-            user = User.objects.get(phone_number=phone_number)
-        except User.DoesNotExist:
+        users = User.objects.filter(phone_number=phone_number)
+        if users.count() != 1:
             raise self.fail("no_active_account")
+
+        user = users.first()
 
         if not user.check_password(password):
             raise self.fail("no_active_account")

@@ -134,6 +134,43 @@ class ProductViewSetTests(APITestBase):
         self.assertEqual(len(results), 1)
 
 
+class PhoneTokenObtainPairTests(APITestBase):
+    def test_token_login_with_duplicate_phone_number_returns_unauthorized(self):
+        duplicated_phone = "+1234567890"
+        self.user.phone_number = duplicated_phone
+        self.user.save(update_fields=["phone_number"])
+
+        User.objects.create_user(
+            username="duplicate-user",
+            email="duplicate-user@example.com",
+            phone_number=duplicated_phone,
+            password="password",
+        )
+
+        response = self.client.post(
+            "/api/token/",
+            {"phone_number": duplicated_phone, "password": "password"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_token_login_with_unique_phone_number_returns_tokens(self):
+        phone_number = "+19876543210"
+        self.user.phone_number = phone_number
+        self.user.save(update_fields=["phone_number"])
+
+        response = self.client.post(
+            "/api/token/",
+            {"phone_number": phone_number, "password": "password"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.json())
+        self.assertIn("refresh", response.json())
+
+
 class CartSerializerTests(APITestBase):
     def test_authenticated_cart_ignores_session_id(self):
         serializer = CartSerializer(
