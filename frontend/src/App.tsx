@@ -1089,9 +1089,15 @@ function App() {
               <button
                 type="button"
                 onClick={() => navigate('home')}
-                className="grid h-10 w-28 place-items-center rounded-lg bg-gray-900 px-3 text-base font-bold text-white"
+                className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition hover:ring-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                aria-label="На главную"
               >
-                Carbon 69
+                <img
+                  src="/logo.jpg"
+                  alt="Carbon 69"
+                  className="h-10 w-28 object-contain"
+                  loading="eager"
+                />
               </button>
             </div>
 
@@ -2130,7 +2136,19 @@ function App() {
         <footer className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 lg:p-8">
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gray-100 px-4 py-3">
             <div className="flex items-center gap-3 text-sm font-semibold text-gray-900">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-gray-900 text-white">C69</div>
+              <button
+                type="button"
+                onClick={() => navigate('home')}
+                className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition hover:ring-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                aria-label="На главную"
+              >
+                <img
+                  src="/logo.jpg"
+                  alt="Carbon 69"
+                  className="h-10 w-10 object-contain"
+                  loading="lazy"
+                />
+              </button>
               <span>Carbon 69</span>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-gray-900">
