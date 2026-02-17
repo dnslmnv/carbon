@@ -1,3 +1,4 @@
+import json
 import os
 from typing import List, Optional
 
@@ -97,6 +98,28 @@ def ensure_minio_bucket() -> None:
             print(f"MinIO setup: error setting CORS: {exc}")
     else:
         print("MinIO setup: no CORS origins configured; skipping CORS")
+
+    try:
+        s3.put_bucket_policy(
+            Bucket=bucket,
+            Policy=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "PublicReadGetObject",
+                            "Effect": "Allow",
+                            "Principal": "*",
+                            "Action": ["s3:GetObject"],
+                            "Resource": [f"arn:aws:s3:::{bucket}/*"],
+                        }
+                    ],
+                }
+            ),
+        )
+        print(f"MinIO setup: applied public read policy for bucket '{bucket}'")
+    except (BotoCoreError, ClientError, EndpointConnectionError) as exc:
+        print(f"MinIO setup: error setting bucket policy: {exc}")
 
 
 if __name__ == "__main__":
