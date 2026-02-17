@@ -1322,7 +1322,14 @@ function App() {
                         }`}
                       >
                         <span className="flex items-center gap-3">
-                          <span className="h-10 w-10 rounded-lg bg-gray-900" aria-hidden />
+                          <span className="h-10 w-10 overflow-hidden rounded-lg bg-gray-100" aria-hidden>
+                            <img
+                              src={category.image_url || '/categories/avtosvet.png'}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </span>
                           <span className="text-sm font-semibold">{category.name}</span>
                         </span>
                         <ChevronRight className="h-4 w-4 text-gray-400" aria-hidden />
@@ -1338,13 +1345,24 @@ function App() {
                 </h3>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {(activeCatalog?.children ?? []).map((subcategory: CatalogCategory) => (
-                    <article
+                    <button
                       key={subcategory.id}
-                      className="flex flex-col items-center gap-4 rounded-2xl bg-gray-50 p-4 text-center shadow-sm"
+                      type="button"
+                      onClick={() =>
+                        navigate('catalog', { catalogId: subcategory.id, catalogSlug: subcategory.slug })
+                      }
+                      className="flex flex-col items-center gap-4 rounded-2xl bg-gray-50 p-4 text-center shadow-sm transition hover:bg-gray-100"
                     >
-                      <span className="h-16 w-16 rounded-2xl bg-gray-900" aria-hidden />
+                      <span className="h-16 w-16 overflow-hidden rounded-2xl bg-gray-100" aria-hidden>
+                        <img
+                          src={subcategory.image_url || '/categories/avtosvet.png'}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </span>
                       <p className="text-sm font-semibold text-gray-900">{subcategory.name}</p>
-                    </article>
+                    </button>
                   ))}
                 </div>
               </div>
