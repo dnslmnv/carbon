@@ -407,6 +407,7 @@ function App() {
   const [registerLoading, setRegisterLoading] = useState(false)
   const [selectedBrandIds, setSelectedBrandIds] = useState<number[]>([])
   const [selectedAttributeFilters, setSelectedAttributeFilters] = useState<string[]>([])
+  const [selectedAttributeRanges, setSelectedAttributeRanges] = useState<Record<number, { min: string; max: string }>>({})
   const [catalogNameFilter, setCatalogNameFilter] = useState('')
   const [searchText, setSearchText] = useState('')
   const [orderLoading, setOrderLoading] = useState(false)
@@ -598,11 +599,28 @@ function App() {
     setCatalogPage(1)
   }
 
-  const toggleAttributeFilter = (attributeId: number, value: string) => {
+  const toggleAttributeFilter = (attributeId: number, value: string, singleChoice = false) => {
     const token = `${attributeId}:${value}`
-    setSelectedAttributeFilters((prev) =>
-      prev.includes(token) ? prev.filter((entry) => entry !== token) : [...prev, token],
-    )
+    setSelectedAttributeFilters((prev) => {
+      if (singleChoice) {
+        const withoutAttribute = prev.filter((entry) => !entry.startsWith(`${attributeId}:`))
+        return prev.includes(token) ? withoutAttribute : [...withoutAttribute, token]
+      }
+      return prev.includes(token) ? prev.filter((entry) => entry !== token) : [...prev, token]
+    })
+    setCatalogPage(1)
+  }
+
+
+
+  const updateAttributeRangeFilter = (attributeId: number, bound: 'min' | 'max', value: string) => {
+    setSelectedAttributeRanges((prev) => ({
+      ...prev,
+      [attributeId]: {
+        min: bound === 'min' ? value : prev[attributeId]?.min ?? '',
+        max: bound === 'max' ? value : prev[attributeId]?.max ?? '',
+      },
+    }))
     setCatalogPage(1)
   }
 
@@ -941,6 +959,14 @@ function App() {
         }
         selectedBrandIds.forEach((brandId) => params.append('brand', String(brandId)))
         selectedAttributeFilters.forEach((attribute) => params.append('attribute', attribute))
+        Object.entries(selectedAttributeRanges).forEach(([attributeId, bounds]) => {
+          const min = bounds.min.trim()
+          const max = bounds.max.trim()
+          if (!min && !max) {
+            return
+          }
+          params.append('attribute', `${attributeId}:${min}..${max}`)
+        })
 
         const response = await fetch(`${apiBaseUrl}/api/catalog-page/?${params.toString()}`)
         if (!response.ok) {
@@ -987,11 +1013,41 @@ function App() {
     catalogNameFilter,
     selectedBrandIds,
     selectedAttributeFilters,
+    selectedAttributeRanges,
   ])
 
   useEffect(() => {
     setCatalogPage(1)
   }, [activeCatalogId])
+
+
+  useEffect(() => {
+    if (!catalogData) {
+      return
+    }
+
+    const allowedAttributeIds = new Set(catalogData.filters.attributes.map((attribute) => attribute.id))
+
+    setSelectedAttributeFilters((prev) => {
+      const next = prev.filter((entry) => {
+        const [attributeId] = entry.split(':', 1)
+        return allowedAttributeIds.has(Number(attributeId))
+      })
+      return next.length === prev.length ? prev : next
+    })
+
+    setSelectedAttributeRanges((prev) => {
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([attributeId]) => allowedAttributeIds.has(Number(attributeId))),
+      )
+      const prevKeys = Object.keys(prev)
+      const nextKeys = Object.keys(next)
+      if (prevKeys.length === nextKeys.length && prevKeys.every((key) => key in next)) {
+        return prev
+      }
+      return next
+    })
+  }, [catalogData])
 
   useEffect(() => {
     let isActive = true
@@ -1126,7 +1182,7 @@ function App() {
     searchText.trim().length > 0 ||
     catalogNameFilter.trim().length > 0 ||
     selectedBrandIds.length > 0 ||
-    selectedAttributeFilters.length > 0
+    selectedAttributeFilters.length > 0 || Object.values(selectedAttributeRanges).some((bounds) => bounds.min || bounds.max)
   const isParentCategoryPage =
     isCatalogPage &&
     !hasActiveCatalogViewState &&
@@ -1524,7 +1580,9 @@ function App() {
             setCatalogPage={setCatalogPage}
             toggleBrandFilter={toggleBrandFilter}
             toggleAttributeFilter={toggleAttributeFilter}
+            updateAttributeRangeFilter={updateAttributeRangeFilter}
             selectedAttributeFilters={selectedAttributeFilters}
+            selectedAttributeRanges={selectedAttributeRanges}
             formatPrice={formatPrice}
             onProductOpen={(productId) => navigate('product', { productId })}
           />

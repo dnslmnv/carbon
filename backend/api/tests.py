@@ -133,6 +133,28 @@ class ProductViewSetTests(APITestBase):
         results = response.json()
         self.assertEqual(len(results), 1)
 
+    def test_product_filters_by_attribute_number_range(self):
+        attribute = CategoryAttribute.objects.create(
+            category=self.category,
+            name="Power",
+            data_type=CategoryAttribute.DataType.NUMBER,
+            is_filterable=True,
+            is_required=False,
+            filter_type=CategoryAttribute.FilterType.RANGE,
+        )
+        ProductAttributeValue.objects.create(
+            product=self.product,
+            attribute=attribute,
+            value_number=Decimal("42.500"),
+        )
+
+        response = self.client.get(f"/api/products/?attribute={attribute.id}:40..45")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.json()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], self.product.id)
+
 
 class PhoneTokenObtainPairTests(APITestBase):
     def test_token_login_with_duplicate_phone_number_returns_unauthorized(self):
