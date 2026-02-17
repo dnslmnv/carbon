@@ -437,7 +437,12 @@ function App() {
     const hasCatalogIdOption = options !== undefined && 'catalogId' in options
     const hasCatalogSlugOption = options !== undefined && 'catalogSlug' in options
     const catalogId = hasCatalogIdOption ? options.catalogId ?? null : activeCatalogId
-    const catalogSlug = hasCatalogSlugOption ? options.catalogSlug ?? null : activeCatalogSlug
+    const catalogSlug =
+      hasCatalogSlugOption
+        ? options.catalogSlug ?? null
+        : nextPage === 'catalog' && hasCatalogIdOption
+          ? null
+          : activeCatalogSlug
     setPage(nextPage)
     if (nextPage === 'product') {
       setSelectedProductId(productId)
