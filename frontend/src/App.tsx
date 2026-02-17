@@ -1291,13 +1291,13 @@ function App() {
               <button
                 type="button"
                 onClick={() => navigate('home')}
-                className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition hover:ring-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                className="transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                 aria-label="На главную"
               >
                 <img
                   src="/logo.jpg"
                   alt="Carbon 69"
-                  className="h-10 w-28 object-contain"
+                  className="h-14 w-40 object-contain"
                   loading="eager"
                 />
               </button>
@@ -1959,13 +1959,13 @@ function App() {
               <button
                 type="button"
                 onClick={() => navigate('home')}
-                className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 transition hover:ring-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                className="transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                 aria-label="На главную"
               >
                 <img
                   src="/logo.jpg"
                   alt="Carbon 69"
-                  className="h-10 w-10 object-contain"
+                  className="h-14 w-14 object-contain"
                   loading="lazy"
                 />
               </button>
