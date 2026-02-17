@@ -1,12 +1,9 @@
 ﻿import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
-  ChevronDown,
   ChevronRight,
   Clock3,
   Flame,
-  LayoutGrid,
-  List,
   LogIn,
   Minus,
   MapPin,
@@ -24,6 +21,7 @@ import {
   X,
   Youtube,
 } from 'lucide-react'
+import { CatalogPage as CatalogPageSection } from './components/CatalogPage'
 
 type Category = {
   id: number
@@ -209,6 +207,7 @@ type AppRouteState = {
   page: AppPage
   productId: number | null
   catalogId: number | null
+  catalogSlug: string | null
 }
 
 type OrderResponse = {
@@ -276,28 +275,31 @@ const productApplicability = [
 
 const parseRouteFromLocation = (): AppRouteState => {
   if (typeof window === 'undefined') {
-    return { page: 'home', productId: null, catalogId: null }
+    return { page: 'home', productId: null, catalogId: null, catalogSlug: null }
   }
 
   const { pathname } = window.location
   const segments = pathname.split('/').filter(Boolean)
 
   if (segments[0] === 'catalog') {
-    const catalogId = Number(segments[1])
+    const rawSegment = segments[1]
+    const catalogId = Number(rawSegment)
     return {
       page: 'catalog',
       productId: null,
       catalogId: Number.isFinite(catalogId) && catalogId > 0 ? catalogId : null,
+      catalogSlug:
+        rawSegment && (!Number.isFinite(catalogId) || catalogId <= 0) ? rawSegment : null,
     }
   }
   if (segments[0] === 'cart') {
-    return { page: 'cart', productId: null, catalogId: null }
+    return { page: 'cart', productId: null, catalogId: null, catalogSlug: null }
   }
   if (segments[0] === 'login') {
-    return { page: 'login', productId: null, catalogId: null }
+    return { page: 'login', productId: null, catalogId: null, catalogSlug: null }
   }
   if (segments[0] === 'orders') {
-    return { page: 'orders', productId: null, catalogId: null }
+    return { page: 'orders', productId: null, catalogId: null, catalogSlug: null }
   }
   if (segments[0] === 'product') {
     const productId = Number(segments[1])
@@ -305,10 +307,16 @@ const parseRouteFromLocation = (): AppRouteState => {
       page: Number.isFinite(productId) && productId > 0 ? 'product' : 'home',
       productId: Number.isFinite(productId) && productId > 0 ? productId : null,
       catalogId: null,
+      catalogSlug: null,
     }
   }
 
-  return { page: 'home', productId: null, catalogId: null }
+  const [firstSegment] = segments
+  if (firstSegment) {
+    return { page: 'catalog', productId: null, catalogId: null, catalogSlug: firstSegment }
+  }
+
+  return { page: 'home', productId: null, catalogId: null, catalogSlug: null }
 }
 
 function App() {
@@ -341,6 +349,7 @@ function App() {
   const initialRoute = parseRouteFromLocation()
   const [page, setPage] = useState<AppPage>(initialRoute.page)
   const [activeCatalogId, setActiveCatalogId] = useState<number | null>(initialRoute.catalogId)
+  const [activeCatalogSlug, setActiveCatalogSlug] = useState<string | null>(initialRoute.catalogSlug)
   const [catalogPage, setCatalogPage] = useState(1)
   const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
   const [catalogError, setCatalogError] = useState(false)
@@ -392,10 +401,17 @@ function App() {
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orders, setOrders] = useState<OrderResponse[]>([])
 
-  const buildPath = (nextPage: AppPage, options?: { productId?: number | null; catalogId?: number | null }) => {
+  const buildPath = (
+    nextPage: AppPage,
+    options?: { productId?: number | null; catalogId?: number | null; catalogSlug?: string | null },
+  ) => {
     const productId = options?.productId ?? null
     const catalogId = options?.catalogId ?? null
+    const catalogSlug = options?.catalogSlug ?? null
     if (nextPage === 'catalog') {
+      if (catalogSlug) {
+        return `/${catalogSlug}`
+      }
       return catalogId ? `/catalog/${catalogId}` : '/catalog'
     }
     if (nextPage === 'cart') {
@@ -415,11 +431,18 @@ function App() {
 
   const navigate = (
     nextPage: AppPage,
-    options?: { productId?: number | null; catalogId?: number | null; replace?: boolean },
+    options?: { productId?: number | null; catalogId?: number | null; catalogSlug?: string | null; replace?: boolean },
   ) => {
     const productId = options?.productId ?? null
     const hasCatalogIdOption = options !== undefined && 'catalogId' in options
+    const hasCatalogSlugOption = options !== undefined && 'catalogSlug' in options
     const catalogId = hasCatalogIdOption ? options.catalogId ?? null : activeCatalogId
+    const catalogSlug =
+      hasCatalogSlugOption
+        ? options.catalogSlug ?? null
+        : nextPage === 'catalog' && hasCatalogIdOption
+          ? null
+          : activeCatalogSlug
     setPage(nextPage)
     if (nextPage === 'product') {
       setSelectedProductId(productId)
@@ -427,8 +450,11 @@ function App() {
     if (nextPage === 'catalog' && hasCatalogIdOption) {
       setActiveCatalogId(catalogId)
     }
+    if (nextPage === 'catalog' && hasCatalogSlugOption) {
+      setActiveCatalogSlug(catalogSlug)
+    }
     setIsCatalogOpen(false)
-    const targetPath = buildPath(nextPage, { productId, catalogId })
+    const targetPath = buildPath(nextPage, { productId, catalogId, catalogSlug })
     if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
       const method = options?.replace ? 'replaceState' : 'pushState'
       window.history[method]({}, '', targetPath)
@@ -446,6 +472,7 @@ function App() {
       setPage(route.page)
       setSelectedProductId(route.productId)
       setActiveCatalogId(route.catalogId)
+      setActiveCatalogSlug(route.catalogSlug)
       setIsCatalogOpen(false)
     }
 
@@ -528,15 +555,6 @@ function App() {
     setSelectedAttributeFilters((prev) =>
       prev.includes(token) ? prev.filter((entry) => entry !== token) : [...prev, token],
     )
-    setCatalogPage(1)
-  }
-
-  const clearCatalogFilters = () => {
-    setCatalogNameFilter('')
-    setSearchText('')
-    setQuery('')
-    setSelectedBrandIds([])
-    setSelectedAttributeFilters([])
     setCatalogPage(1)
   }
 
@@ -840,6 +858,25 @@ function App() {
   useEffect(() => {
     let isActive = true
 
+    const findInTreeBySlug = (
+      entries: CatalogCategory[],
+      slug: string | null,
+    ): CatalogCategory | null => {
+      if (!slug) {
+        return null
+      }
+      for (const entry of entries) {
+        if (entry.slug === slug) {
+          return entry
+        }
+        const found = findInTreeBySlug(entry.children, slug)
+        if (found) {
+          return found
+        }
+      }
+      return null
+    }
+
     const loadCatalogData = async () => {
       try {
         const params = new URLSearchParams()
@@ -865,10 +902,21 @@ function App() {
         if (!isActive) {
           return
         }
+
+        if (!activeCatalogId && activeCatalogSlug) {
+          const slugCategory = findInTreeBySlug(data.category_tree, activeCatalogSlug)
+          if (slugCategory) {
+            setActiveCatalogId(slugCategory.id)
+            setCatalogError(false)
+            return
+          }
+        }
+
         setCatalogData(data)
         setCatalogError(false)
-        if (!activeCatalogId && data.category) {
+        if (data.category) {
           setActiveCatalogId(data.category.id)
+          setActiveCatalogSlug(data.category.slug)
         }
       } catch {
         if (isActive) {
@@ -885,6 +933,7 @@ function App() {
   }, [
     apiBaseUrl,
     activeCatalogId,
+    activeCatalogSlug,
     catalogPage,
     searchText,
     catalogNameFilter,
@@ -1003,8 +1052,28 @@ function App() {
     return null
   }
 
+  const findCategoryBySlug = (
+    entries: CatalogCategory[],
+    slug: string | null,
+  ): CatalogCategory | null => {
+    if (!slug) {
+      return null
+    }
+    for (const entry of entries) {
+      if (entry.slug === slug) {
+        return entry
+      }
+      const found = findCategoryBySlug(entry.children, slug)
+      if (found) {
+        return found
+      }
+    }
+    return null
+  }
+
   const catalogTree = catalogData?.category_tree ?? []
-  const activeCatalog = findCategoryById(catalogTree, activeCatalogId)
+  const activeCatalog =
+    findCategoryById(catalogTree, activeCatalogId) ?? findCategoryBySlug(catalogTree, activeCatalogSlug)
   const productBreadcrumbs = useMemo(() => {
     if (!productData) {
       return ['Каталоги']
@@ -1297,8 +1366,7 @@ function App() {
                         key={category.id}
                         type="button"
                         onClick={() => {
-                          setActiveCatalogId(category.id)
-                          navigate('catalog')
+                          navigate('catalog', { catalogId: category.id, catalogSlug: category.slug })
                         }}
                         className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
                           isActive
@@ -1396,199 +1464,19 @@ function App() {
         </section>
 
         {isCatalogPage ? (
-          <>
-            <section className="mt-6 space-y-3">
-              <p className="text-xs font-medium text-gray-500">
-                {(catalogData?.breadcrumbs ?? []).map((crumb) => crumb.name).join(' / ')}
-              </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                  {catalogData?.category?.name ?? 'Каталог'}
-                </h1>
-                <span className="text-sm text-gray-500">
-                  {catalogData?.products.count ?? 0} товаров
-                </span>
-              </div>
-              {catalogError ? (
-                <p className="text-sm font-medium text-red-600">
-                  Не удалось загрузить каталог. Проверьте соединение.
-                </p>
-              ) : null}
-            </section>
-
-            <section className="mt-5 grid gap-6 lg:grid-cols-[280px_1fr]">
-              <aside className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-                <div className="space-y-5 text-sm text-gray-700">
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-semibold text-gray-900">Наименование</h2>
-                    <input
-                      type="text"
-                      value={catalogNameFilter}
-                      onChange={(event) => {
-                        setCatalogNameFilter(event.target.value)
-                        setCatalogPage(1)
-                      }}
-                      placeholder="Введите текст"
-                      className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-900">Производитель</h3>
-                    <div className="space-y-2">
-                      {(catalogData?.filters.brands ?? []).map((brand) => (
-                        <label key={brand.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedBrandIds.includes(brand.id)}
-                            onChange={() => toggleBrandFilter(brand.id)}
-                            className="h-4 w-4 accent-red-600"
-                          />
-                          <span>{brand.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {(catalogData?.filters.attributes ?? []).map((attribute) => (
-                    <div key={attribute.id} className="space-y-2">
-                      <h3 className="text-sm font-semibold text-gray-900">
-                        {attribute.name}
-                        {attribute.unit ? `, ${attribute.unit}` : ''}
-                      </h3>
-                      {attribute.range ? (
-                        <div className="text-xs text-gray-500">
-                          от {attribute.range.min} до {attribute.range.max}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {attribute.options.map((option) => (
-                            <label key={option.value} className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selectedAttributeFilters.includes(
-                                  `${attribute.id}:${option.value}`,
-                                )}
-                                onChange={() => toggleAttributeFilter(attribute.id, option.value)}
-                                className="h-4 w-4 accent-red-600"
-                              />
-                              <span>{option.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  <button
-                    type="button"
-                    onClick={clearCatalogFilters}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                  >
-                    Сбросить фильтры
-                  </button>
-                </div>
-              </aside>
-
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-gray-100"
-                  >
-                    Сначала популярные
-                    <ChevronDown className="h-4 w-4 text-gray-500" aria-hidden />
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
-                      aria-label="Плитка"
-                    >
-                      <LayoutGrid className="h-4 w-4" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
-                      aria-label="Список"
-                    >
-                      <List className="h-4 w-4" aria-hidden />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {(catalogData?.products.results ?? []).map((product) => (
-                    <article
-                      key={product.id}
-                      className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100"
-                    >
-                      <div className="flex aspect-square items-center justify-center rounded-xl bg-gray-100">
-                        <img
-                          src={product.image_url || '/categories/avtosvet.png'}
-                          alt={product.name}
-                          className="h-28 w-28 object-contain"
-                          loading="lazy"
-                        />
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        <p className="text-xs font-semibold text-emerald-600">
-                          {product.stock_available > 0
-                            ? `В наличии ${product.stock_available} шт`
-                            : 'Под заказ'}
-                        </p>
-                        <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
-                        <p className="text-xs text-gray-500">{product.brand_name}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigate('product', { productId: product.id })
-                          }}
-                          className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-                        >
-                          от {formatPrice(Number(product.price))}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100">
-                  <span>
-                    Страница {catalogData?.products.page ?? 1} из{' '}
-                    {catalogData?.products.page_size
-                      ? Math.ceil(
-                          (catalogData?.products.count ?? 0) / catalogData.products.page_size,
-                        )
-                      : 1}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 disabled:opacity-50"
-                      onClick={() => setCatalogPage((prev) => Math.max(prev - 1, 1))}
-                      disabled={(catalogData?.products.page ?? 1) <= 1}
-                    >
-                      Назад
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 disabled:opacity-50"
-                      onClick={() => setCatalogPage((prev) => prev + 1)}
-                      disabled={
-                        (catalogData?.products.page ?? 1) >=
-                        Math.ceil(
-                          (catalogData?.products.count ?? 0) /
-                            (catalogData?.products.page_size || 1),
-                        )
-                      }
-                    >
-                      Вперед
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </>
+          <CatalogPageSection
+            catalogData={catalogData}
+            catalogError={catalogError}
+            catalogNameFilter={catalogNameFilter}
+            selectedBrandIds={selectedBrandIds}
+            setCatalogNameFilter={setCatalogNameFilter}
+            setCatalogPage={setCatalogPage}
+            toggleBrandFilter={toggleBrandFilter}
+            toggleAttributeFilter={toggleAttributeFilter}
+            selectedAttributeFilters={selectedAttributeFilters}
+            formatPrice={formatPrice}
+            onProductOpen={(productId) => navigate('product', { productId })}
+          />
         ) : isProductPage ? (
           <>
             <section className="mt-6 space-y-3">
