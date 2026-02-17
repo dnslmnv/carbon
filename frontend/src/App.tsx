@@ -23,6 +23,7 @@ import { CatalogPage as CatalogPageSection } from './components/CatalogPage'
 import { LoginPage } from './components/LoginPage'
 import { OrdersPage } from './components/OrdersPage'
 import { ParentCategoryPage } from './components/ParentCategoryPage'
+import { RegisterPage } from './components/RegisterPage'
 
 type Category = {
   id: number
@@ -202,7 +203,7 @@ type AuthTokens = {
   refresh: string
 }
 
-type AppPage = 'home' | 'catalog' | 'product' | 'cart' | 'login' | 'orders'
+type AppPage = 'home' | 'catalog' | 'product' | 'cart' | 'login' | 'register' | 'orders'
 
 type AppRouteState = {
   page: AppPage
@@ -299,6 +300,9 @@ const parseRouteFromLocation = (): AppRouteState => {
   if (segments[0] === 'login') {
     return { page: 'login', productId: null, catalogId: null, catalogSlug: null }
   }
+  if (segments[0] === 'register') {
+    return { page: 'register', productId: null, catalogId: null, catalogSlug: null }
+  }
   if (segments[0] === 'orders') {
     return { page: 'orders', productId: null, catalogId: null, catalogSlug: null }
   }
@@ -383,6 +387,8 @@ function App() {
   const isProductPage = page === 'product'
   const isCartPage = page === 'cart'
   const isLoginPage = page === 'login'
+  const isRegisterPage = page === 'register'
+  const isAuthPage = isLoginPage || isRegisterPage
   const isOrdersPage = page === 'orders'
   const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
@@ -394,6 +400,11 @@ function App() {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loginLoading, setLoginLoading] = useState(false)
+  const [registerPhone, setRegisterPhone] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
+  const [registerError, setRegisterError] = useState<string | null>(null)
+  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
+  const [registerLoading, setRegisterLoading] = useState(false)
   const [selectedBrandIds, setSelectedBrandIds] = useState<number[]>([])
   const [selectedAttributeFilters, setSelectedAttributeFilters] = useState<string[]>([])
   const [selectedAttributeRanges, setSelectedAttributeRanges] = useState<Record<number, { min: string; max: string }>>({})
@@ -424,6 +435,9 @@ function App() {
     }
     if (nextPage === 'orders') {
       return '/orders'
+    }
+    if (nextPage === 'register') {
+      return '/register'
     }
     if (nextPage === 'product' && productId) {
       return `/product/${productId}`
@@ -515,12 +529,12 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: loginUsername,
+          phone_number: loginUsername,
           password: loginPassword,
         }),
       })
       if (!response.ok) {
-        throw new Error('Неверный логин или пароль')
+        throw new Error('Неверный номер телефона или пароль')
       }
       const data = (await response.json()) as AuthTokens
       storeAuth(data, loginUsername)
@@ -534,6 +548,39 @@ function App() {
       }
     } finally {
       setLoginLoading(false)
+    }
+  }
+
+  const handleRegisterSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setRegisterLoading(true)
+    setRegisterError(null)
+    setRegisterSuccess(null)
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/register/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone_number: registerPhone,
+          password: registerPassword,
+        }),
+      })
+      const payload = (await response.json()) as { detail?: string; phone_number?: string }
+      if (!response.ok) {
+        throw new Error(payload.detail ?? 'Не удалось зарегистрироваться.')
+      }
+      setRegisterSuccess('Аккаунт создан. Теперь вы можете войти.')
+      setLoginUsername(payload.phone_number ?? registerPhone)
+      setLoginPassword('')
+      setRegisterPassword('')
+    } catch (error) {
+      if (error instanceof Error) {
+        setRegisterError(error.message)
+      } else {
+        setRegisterError('Не удалось зарегистрироваться. Попробуйте позже.')
+      }
+    } finally {
+      setRegisterLoading(false)
     }
   }
 
@@ -1320,7 +1367,8 @@ function App() {
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3 text-sm text-gray-700">
+          {!isAuthPage ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3 text-sm text-gray-700">
             <div className="flex flex-wrap items-center gap-4">
               <a href="#" className="font-semibold text-gray-900 transition hover:text-red-700">
                 Клиентам
@@ -1346,7 +1394,8 @@ function App() {
                 8 (904) 022-4334
               </a>
             </div>
-          </div>
+            </div>
+          ) : null}
         </header>
 
         {isLoginPage ? (
@@ -1355,6 +1404,7 @@ function App() {
             authUsername={authUsername}
             clearAuth={clearAuth}
             navigateHome={() => navigate('home')}
+            navigateRegister={() => navigate('register')}
             loginUsername={loginUsername}
             setLoginUsername={setLoginUsername}
             loginPassword={loginPassword}
@@ -1362,6 +1412,18 @@ function App() {
             loginError={loginError}
             loginLoading={loginLoading}
             handleLoginSubmit={handleLoginSubmit}
+          />
+                  ) : isRegisterPage ? (
+          <RegisterPage
+            registerPhone={registerPhone}
+            setRegisterPhone={setRegisterPhone}
+            registerPassword={registerPassword}
+            setRegisterPassword={setRegisterPassword}
+            registerError={registerError}
+            registerLoading={registerLoading}
+            registerSuccess={registerSuccess}
+            handleRegisterSubmit={handleRegisterSubmit}
+            navigateLogin={() => navigate('login')}
           />
         ) : isCatalogOpen ? (
           <section
@@ -1437,8 +1499,10 @@ function App() {
           </section>
         ) : null}
 
-        {/* Карусель баннеров */}
-        <section className="mt-4 sm:mt-6">
+        {!isAuthPage ? (
+          <>
+            {/* Карусель баннеров */}
+            <section className="mt-4 sm:mt-6">
           <div className="relative overflow-hidden rounded-2xl">
             <div
               className="flex transition-transform duration-500 ease-out"
@@ -1883,8 +1947,13 @@ function App() {
           </>
         )}
 
-        {/* Футер */}
-        <footer className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 lg:p-8">
+          </>
+        ) : null}
+
+        {!isAuthPage ? (
+          <>
+            {/* Футер */}
+            <footer className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 lg:p-8">
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gray-100 px-4 py-3">
             <div className="flex items-center gap-3 text-sm font-semibold text-gray-900">
               <button
@@ -1981,7 +2050,9 @@ function App() {
           <div className="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-700">
             <p className="text-center">© 2025 Carbon 69: интернет-магазин автозапчастей</p>
           </div>
-        </footer>
+            </footer>
+          </>
+        ) : null}
       </div>
     </div>
   )

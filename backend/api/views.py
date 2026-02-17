@@ -1,15 +1,19 @@
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Count, Min, Max
 from django.shortcuts import get_object_or_404
+from django.utils.text import slugify
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from cart.models import Cart, CartItem
 from catalog.models import Banner, Brand, Category, CategoryAttribute, Product, ProductAttributeValue
 from orders.models import Order
+from users.models import User
 
 from .models import FileRecord
 from .serializers import (
@@ -84,6 +88,72 @@ def _apply_attribute_filters(queryset, attribute_filters):
             )
 
     return queryset
+class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = "phone_number"
+
+    def validate(self, attrs):
+        phone_number = attrs.get("phone_number", "").strip()
+        password = attrs.get("password")
+        if not phone_number or not password:
+            raise self.fail("no_active_account")
+
+        users = User.objects.filter(phone_number=phone_number)
+        if users.count() != 1:
+            raise self.fail("no_active_account")
+
+        user = users.first()
+
+        if not user.check_password(password):
+            raise self.fail("no_active_account")
+
+        if not user.is_active:
+            raise self.fail("no_active_account")
+
+        refresh = self.get_token(user)
+        return {"refresh": str(refresh), "access": str(refresh.access_token)}
+
+
+class PhoneTokenObtainPairView(TokenObtainPairView):
+    serializer_class = PhoneTokenObtainPairSerializer
+
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        phone_number = str(request.data.get("phone_number", "")).strip()
+        password = str(request.data.get("password", ""))
+
+        if not phone_number:
+            return Response({"detail": "Укажите номер телефона."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) < 8:
+            return Response({"detail": "Пароль должен быть не короче 8 символов."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(phone_number=phone_number).exists():
+            return Response({"detail": "Пользователь с таким номером телефона уже существует."}, status=status.HTTP_400_BAD_REQUEST)
+
+        base_username = phone_number
+        username = base_username
+        suffix = 1
+        while User.objects.filter(username=username).exists():
+            suffix += 1
+            username = f"{base_username}_{suffix}"
+
+        normalized_phone = ''.join(ch for ch in phone_number if ch.isdigit()) or slugify(phone_number) or "user"
+        email = f"{normalized_phone}@carbon69.local"
+        email_suffix = 1
+        while User.objects.filter(email=email).exists():
+            email_suffix += 1
+            email = f"{normalized_phone}{email_suffix}@carbon69.local"
+
+        user = User.objects.create_user(
+            username=username,
+            phone_number=phone_number,
+            email=email,
+            password=password,
+        )
+
+        return Response({"id": user.id, "phone_number": user.phone_number}, status=status.HTTP_201_CREATED)
 
 
 class HelloView(APIView):
