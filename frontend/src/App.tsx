@@ -1927,30 +1927,32 @@ function App() {
                   У вас пока нет оформленных заказов.
                 </div>
               ) : null}
-              {orders.map((order) => (
-                <article key={order.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-base font-semibold text-gray-900">Заказ #{order.id}</h2>
-                    <span className="text-sm font-medium text-gray-600">{order.status}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Создан: {new Date(order.created_at).toLocaleString('ru-RU')}
-                  </p>
-                  <div className="mt-3 space-y-2 text-sm text-gray-700">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between">
-                        <span>
-                          {item.product.name} × {item.quantity}
-                        </span>
-                        <span>{formatPrice(Number(item.price_snapshot) * item.quantity)}</span>
+              {isAuthenticated
+                ? orders.map((order) => (
+                    <article key={order.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-base font-semibold text-gray-900">Заказ #{order.id}</h2>
+                        <span className="text-sm font-medium text-gray-600">{order.status}</span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 border-t border-gray-100 pt-2 text-right text-sm font-semibold text-gray-900">
-                    Итого: {formatPrice(Number(order.grand_total))}
-                  </div>
-                </article>
-              ))}
+                      <p className="mt-1 text-xs text-gray-500">
+                        Создан: {new Date(order.created_at).toLocaleString('ru-RU')}
+                      </p>
+                      <div className="mt-3 space-y-2 text-sm text-gray-700">
+                        {order.items.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between">
+                            <span>
+                              {item.product.name} × {item.quantity}
+                            </span>
+                            <span>{formatPrice(Number(item.price_snapshot) * item.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 border-t border-gray-100 pt-2 text-right text-sm font-semibold text-gray-900">
+                        Итого: {formatPrice(Number(order.grand_total))}
+                      </div>
+                    </article>
+                  ))
+                : null}
             </section>
           </>
         ) : (
