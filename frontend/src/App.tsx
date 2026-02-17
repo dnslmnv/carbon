@@ -22,6 +22,7 @@ import { CartPage } from './components/CartPage'
 import { CatalogPage as CatalogPageSection } from './components/CatalogPage'
 import { LoginPage } from './components/LoginPage'
 import { OrdersPage } from './components/OrdersPage'
+import { ParentCategoryPage } from './components/ParentCategoryPage'
 
 type Category = {
   id: number
@@ -1074,6 +1075,8 @@ function App() {
   const catalogTree = catalogData?.category_tree ?? []
   const activeCatalog =
     findCategoryById(catalogTree, activeCatalogId) ?? findCategoryBySlug(catalogTree, activeCatalogSlug)
+  const isParentCategoryPage =
+    isCatalogPage && !!activeCatalog && catalogTree.some((category) => category.id === activeCatalog.id)
   const productBreadcrumbs = useMemo(() => {
     if (!productData) {
       return ['Каталоги']
@@ -1428,7 +1431,18 @@ function App() {
           </div>
         </section>
 
-        {isCatalogPage ? (
+        {isParentCategoryPage ? (
+          <ParentCategoryPage
+            title={activeCatalog.name}
+            childrenCategories={activeCatalog.children}
+            onCategoryOpen={(category) =>
+              navigate('catalog', {
+                catalogId: category.id,
+                catalogSlug: category.slug,
+              })
+            }
+          />
+        ) : isCatalogPage ? (
           <CatalogPageSection
             catalogData={catalogData}
             catalogError={catalogError}
