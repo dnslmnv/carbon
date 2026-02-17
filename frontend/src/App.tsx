@@ -202,6 +202,30 @@ type AuthTokens = {
   refresh: string
 }
 
+type AppPage = 'home' | 'catalog' | 'product' | 'cart' | 'login' | 'orders'
+
+type AppRouteState = {
+  page: AppPage
+  productId: number | null
+}
+
+type OrderResponse = {
+  id: number
+  status: string
+  grand_total: string
+  created_at: string
+  items: {
+    id: number
+    quantity: number
+    price_snapshot: string
+    product: {
+      id: number
+      name: string
+      slug: string
+    }
+  }[]
+}
+
 const formatPrice = (value: number) => `${value.toLocaleString('ru-RU')} руб.`
 type CartProduct = {
   id: number
@@ -248,23 +272,39 @@ const productApplicability = [
   'Автозамки и петли дверей',
 ]
 
+const parseRouteFromLocation = (): AppRouteState => {
+  if (typeof window === 'undefined') {
+    return { page: 'home', productId: null }
+  }
+
+  const { pathname } = window.location
+  const segments = pathname.split('/').filter(Boolean)
+
+  if (segments[0] === 'catalog') {
+    return { page: 'catalog', productId: null }
+  }
+  if (segments[0] === 'cart') {
+    return { page: 'cart', productId: null }
+  }
+  if (segments[0] === 'login') {
+    return { page: 'login', productId: null }
+  }
+  if (segments[0] === 'orders') {
+    return { page: 'orders', productId: null }
+  }
+  if (segments[0] === 'product') {
+    const productId = Number(segments[1])
+    return {
+      page: Number.isFinite(productId) && productId > 0 ? 'product' : 'home',
+      productId: Number.isFinite(productId) && productId > 0 ? productId : null,
+    }
+  }
+
+  return { page: 'home', productId: null }
+}
+
 function App() {
   const isWipMode = import.meta.env.VITE_WIP_PAGE === '1'
-
-  if (isWipMode) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 text-center text-xl font-semibold text-gray-900">
-        <div className="flex flex-col items-center gap-6">
-          <img
-            src="/logo.jpg"
-            alt="Carbon 69"
-            className="h-40 w-40 rounded-full object-contain shadow-md"
-          />
-          <p>Сайт в разработке. Трудимся для вашего удобства.</p>
-        </div>
-      </div>
-    )
-  }
 
   const authStorageKey = 'carbon69.auth.tokens'
   const authUsernameKey = 'carbon69.auth.username'
@@ -290,12 +330,13 @@ function App() {
 
   const [query, setQuery] = useState('')
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
-  const [page, setPage] = useState<'home' | 'catalog' | 'product' | 'cart' | 'login'>('home')
+  const initialRoute = parseRouteFromLocation()
+  const [page, setPage] = useState<AppPage>(initialRoute.page)
   const [activeCatalogId, setActiveCatalogId] = useState<number | null>(null)
   const [catalogPage, setCatalogPage] = useState(1)
   const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
   const [catalogError, setCatalogError] = useState(false)
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(initialRoute.productId)
   const [productData, setProductData] = useState<ProductDetail | null>(null)
   const [productError, setProductError] = useState(false)
   const [productLoading, setProductLoading] = useState(false)
@@ -320,15 +361,11 @@ function App() {
     window.localStorage.setItem('cart_session_id', generated)
     return generated
   })
-  const navigate = (nextPage: 'home' | 'catalog' | 'product' | 'cart') => {
-    setPage(nextPage)
-    setIsCatalogOpen(false)
-    window.scrollTo(0, 0)
-  }
   const isCatalogPage = page === 'catalog'
   const isProductPage = page === 'product'
   const isCartPage = page === 'cart'
   const isLoginPage = page === 'login'
+  const isOrdersPage = page === 'orders'
   const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
@@ -340,6 +377,65 @@ function App() {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loginLoading, setLoginLoading] = useState(false)
+  const [selectedBrandIds, setSelectedBrandIds] = useState<number[]>([])
+  const [selectedAttributeFilters, setSelectedAttributeFilters] = useState<string[]>([])
+  const [catalogNameFilter, setCatalogNameFilter] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [orderLoading, setOrderLoading] = useState(false)
+  const [orderError, setOrderError] = useState<string | null>(null)
+  const [orders, setOrders] = useState<OrderResponse[]>([])
+
+  const buildPath = (nextPage: AppPage, productId?: number | null) => {
+    if (nextPage === 'catalog') {
+      return '/catalog'
+    }
+    if (nextPage === 'cart') {
+      return '/cart'
+    }
+    if (nextPage === 'login') {
+      return '/login'
+    }
+    if (nextPage === 'orders') {
+      return '/orders'
+    }
+    if (nextPage === 'product' && productId) {
+      return `/product/${productId}`
+    }
+    return '/'
+  }
+
+  const navigate = (nextPage: AppPage, options?: { productId?: number | null; replace?: boolean }) => {
+    const productId = options?.productId ?? null
+    setPage(nextPage)
+    if (nextPage === 'product') {
+      setSelectedProductId(productId)
+    }
+    setIsCatalogOpen(false)
+    const targetPath = buildPath(nextPage, productId)
+    if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
+      const method = options?.replace ? 'replaceState' : 'pushState'
+      window.history[method]({}, '', targetPath)
+    }
+    window.scrollTo(0, 0)
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const handlePopState = () => {
+      const route = parseRouteFromLocation()
+      setPage(route.page)
+      setSelectedProductId(route.productId)
+      setIsCatalogOpen(false)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
 
   const storeAuth = (tokens: AuthTokens, username: string) => {
     setAuthTokens(tokens)
@@ -392,6 +488,38 @@ function App() {
     } finally {
       setLoginLoading(false)
     }
+  }
+
+  const handleHeaderSearch = () => {
+    const nextSearch = query.trim()
+    setSearchText(nextSearch)
+    setCatalogNameFilter(nextSearch)
+    setCatalogPage(1)
+    navigate('catalog')
+  }
+
+  const toggleBrandFilter = (brandId: number) => {
+    setSelectedBrandIds((prev) =>
+      prev.includes(brandId) ? prev.filter((id) => id !== brandId) : [...prev, brandId],
+    )
+    setCatalogPage(1)
+  }
+
+  const toggleAttributeFilter = (attributeId: number, value: string) => {
+    const token = `${attributeId}:${value}`
+    setSelectedAttributeFilters((prev) =>
+      prev.includes(token) ? prev.filter((entry) => entry !== token) : [...prev, token],
+    )
+    setCatalogPage(1)
+  }
+
+  const clearCatalogFilters = () => {
+    setCatalogNameFilter('')
+    setSearchText('')
+    setQuery('')
+    setSelectedBrandIds([])
+    setSelectedAttributeFilters([])
+    setCatalogPage(1)
   }
 
   const mapCartItem = (item: CartItemResponse): CartItem => {
@@ -522,6 +650,83 @@ function App() {
     }
   }
 
+  const loadOrders = async () => {
+    if (!apiBaseUrl || !authTokens?.access) {
+      return
+    }
+    setOrderLoading(true)
+    setOrderError(null)
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/orders/`, {
+        headers: {
+          Authorization: `Bearer ${authTokens.access}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить заказы.')
+      }
+      const data = (await response.json()) as OrderResponse[]
+      setOrders(data)
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : 'Не удалось загрузить заказы.')
+    } finally {
+      setOrderLoading(false)
+    }
+  }
+
+  const placeOrder = async () => {
+    if (!authTokens?.access) {
+      navigate('login')
+      return
+    }
+    if (!cartItems.length) {
+      setOrderError('Корзина пуста.')
+      return
+    }
+
+    setOrderLoading(true)
+    setOrderError(null)
+    try {
+      const payload = {
+        shipping_total: '0.00',
+        tax_total: '0.00',
+        discount_total: '0.00',
+        items: cartItems.map((item) => ({
+          product_id: item.productId,
+          quantity: item.quantity,
+        })),
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/orders/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authTokens.access}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        throw new Error('Не удалось оформить заказ.')
+      }
+
+      if (cartId) {
+        for (const item of cartItems) {
+          await fetch(`${apiBaseUrl}/api/cart-items/${item.id}/?session_id=${sessionId}`, {
+            method: 'DELETE',
+          })
+        }
+      }
+
+      setCartItems([])
+      await loadOrders()
+      navigate('orders')
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : 'Не удалось оформить заказ.')
+    } finally {
+      setOrderLoading(false)
+    }
+  }
+
   const handlePrev = () => {
     if (!slides.length) {
       return
@@ -608,6 +813,13 @@ function App() {
   }, [apiBaseUrl])
 
   useEffect(() => {
+    if (!isOrdersPage || !isAuthenticated) {
+      return
+    }
+    void loadOrders()
+  }, [isOrdersPage, isAuthenticated])
+
+  useEffect(() => {
     let isActive = true
 
     const loadCatalogData = async () => {
@@ -618,6 +830,14 @@ function App() {
         }
         params.set('page', String(catalogPage))
         params.set('page_size', '9')
+        if (searchText) {
+          params.set('search', searchText)
+        }
+        if (catalogNameFilter) {
+          params.set('search', catalogNameFilter)
+        }
+        selectedBrandIds.forEach((brandId) => params.append('brand', String(brandId)))
+        selectedAttributeFilters.forEach((attribute) => params.append('attribute', attribute))
 
         const response = await fetch(`${apiBaseUrl}/api/catalog-page/?${params.toString()}`)
         if (!response.ok) {
@@ -644,7 +864,15 @@ function App() {
     return () => {
       isActive = false
     }
-  }, [apiBaseUrl, activeCatalogId, catalogPage])
+  }, [
+    apiBaseUrl,
+    activeCatalogId,
+    catalogPage,
+    searchText,
+    catalogNameFilter,
+    selectedBrandIds,
+    selectedAttributeFilters,
+  ])
 
   useEffect(() => {
     setCatalogPage(1)
@@ -737,7 +965,10 @@ function App() {
     }
   }, [apiBaseUrl, selectedProductId])
 
-  const findCategoryById = (entries: CatalogCategory[], id: number | null) => {
+  const findCategoryById = (
+    entries: CatalogCategory[],
+    id: number | null,
+  ): CatalogCategory | null => {
     if (!id) {
       return null
     }
@@ -833,6 +1064,21 @@ function App() {
     [],
   )
 
+  if (isWipMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 text-center text-xl font-semibold text-gray-900">
+        <div className="flex flex-col items-center gap-6">
+          <img
+            src="/logo.jpg"
+            alt="Carbon 69"
+            className="h-40 w-40 rounded-full object-contain shadow-md"
+          />
+          <p>Сайт в разработке. Трудимся для вашего удобства.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900">
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-0 sm:px-6 lg:px-8">
@@ -879,6 +1125,7 @@ function App() {
                 </div>
                 <button
                   type="button"
+                  onClick={handleHeaderSearch}
                   className="inline-flex min-w-[44px] items-center justify-center rounded-r-xl bg-red-600 px-3 text-white transition hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-100"
                   aria-label="Искать"
                 >
@@ -891,7 +1138,7 @@ function App() {
               <NavIconButton label="Корзина" onClick={() => navigate('cart')}>
                 <ShoppingCart className="h-5 w-5" aria-hidden />
               </NavIconButton>
-              <NavIconButton label="Заказы">
+              <NavIconButton label="Заказы" onClick={() => navigate('orders')}>
                 <Package className="h-5 w-5" aria-hidden />
               </NavIconButton>
               {isAuthenticated ? (
@@ -1050,7 +1297,7 @@ function App() {
                   {activeCatalog?.name ?? 'Каталог'}
                 </h3>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {(activeCatalog?.children ?? []).map((subcategory) => (
+                  {(activeCatalog?.children ?? []).map((subcategory: CatalogCategory) => (
                     <article
                       key={subcategory.id}
                       className="flex flex-col items-center gap-4 rounded-2xl bg-gray-50 p-4 text-center shadow-sm"
@@ -1151,6 +1398,11 @@ function App() {
                     <h2 className="text-sm font-semibold text-gray-900">Наименование</h2>
                     <input
                       type="text"
+                      value={catalogNameFilter}
+                      onChange={(event) => {
+                        setCatalogNameFilter(event.target.value)
+                        setCatalogPage(1)
+                      }}
                       placeholder="Введите текст"
                       className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
                     />
@@ -1161,7 +1413,12 @@ function App() {
                     <div className="space-y-2">
                       {(catalogData?.filters.brands ?? []).map((brand) => (
                         <label key={brand.id} className="flex items-center gap-2">
-                          <input type="checkbox" className="h-4 w-4 accent-red-600" />
+                          <input
+                            type="checkbox"
+                            checked={selectedBrandIds.includes(brand.id)}
+                            onChange={() => toggleBrandFilter(brand.id)}
+                            className="h-4 w-4 accent-red-600"
+                          />
                           <span>{brand.name}</span>
                         </label>
                       ))}
@@ -1182,7 +1439,14 @@ function App() {
                         <div className="space-y-2">
                           {attribute.options.map((option) => (
                             <label key={option.value} className="flex items-center gap-2">
-                              <input type="checkbox" className="h-4 w-4 accent-red-600" />
+                              <input
+                                type="checkbox"
+                                checked={selectedAttributeFilters.includes(
+                                  `${attribute.id}:${option.value}`,
+                                )}
+                                onChange={() => toggleAttributeFilter(attribute.id, option.value)}
+                                className="h-4 w-4 accent-red-600"
+                              />
                               <span>{option.label}</span>
                             </label>
                           ))}
@@ -1190,6 +1454,14 @@ function App() {
                       )}
                     </div>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={clearCatalogFilters}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  >
+                    Сбросить фильтры
+                  </button>
                 </div>
               </aside>
 
@@ -1245,8 +1517,7 @@ function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSelectedProductId(product.id)
-                            navigate('product')
+                            navigate('product', { productId: product.id })
                           }}
                           className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                         >
@@ -1599,10 +1870,13 @@ function App() {
                   </div>
                   <button
                     type="button"
+                    onClick={placeOrder}
+                    disabled={orderLoading || cartItems.length === 0}
                     className="mt-4 w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                   >
-                    Оформить заказ
+                    {orderLoading ? 'Оформляем...' : 'Оформить заказ'}
                   </button>
+                  {orderError ? <p className="mt-2 text-xs text-red-600">{orderError}</p> : null}
                   <p className="mt-2 text-xs text-gray-400">
                     Нажимая "Оформить заказ", вы соглашаетесь с офертой.
                   </p>
@@ -1625,6 +1899,60 @@ function App() {
                   </div>
                 </div>
               </div>
+            </section>
+          </>
+        ) : isOrdersPage ? (
+          <>
+            <section className="mt-6">
+              <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Мои заказы</h1>
+            </section>
+            <section className="mt-5 space-y-4">
+              {!isAuthenticated ? (
+                <div className="rounded-2xl bg-white p-4 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100">
+                  Чтобы увидеть заказы, войдите в аккаунт.
+                </div>
+              ) : null}
+              {orderLoading ? (
+                <div className="rounded-2xl bg-white p-4 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100">
+                  Загружаем заказы...
+                </div>
+              ) : null}
+              {orderError ? (
+                <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700 shadow-sm ring-1 ring-red-200">
+                  {orderError}
+                </div>
+              ) : null}
+              {isAuthenticated && !orderLoading && !orderError && orders.length === 0 ? (
+                <div className="rounded-2xl bg-white p-4 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100">
+                  У вас пока нет оформленных заказов.
+                </div>
+              ) : null}
+              {isAuthenticated
+                ? orders.map((order) => (
+                    <article key={order.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-base font-semibold text-gray-900">Заказ #{order.id}</h2>
+                        <span className="text-sm font-medium text-gray-600">{order.status}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Создан: {new Date(order.created_at).toLocaleString('ru-RU')}
+                      </p>
+                      <div className="mt-3 space-y-2 text-sm text-gray-700">
+                        {order.items.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between">
+                            <span>
+                              {item.product.name} × {item.quantity}
+                            </span>
+                            <span>{formatPrice(Number(item.price_snapshot) * item.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 border-t border-gray-100 pt-2 text-right text-sm font-semibold text-gray-900">
+                        Итого: {formatPrice(Number(order.grand_total))}
+                      </div>
+                    </article>
+                  ))
+                : null}
             </section>
           </>
         ) : (
