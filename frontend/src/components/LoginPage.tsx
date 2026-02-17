@@ -5,6 +5,7 @@ type LoginPageProps = {
   authUsername: string | null
   clearAuth: () => void
   navigateHome: () => void
+  navigateRegister: () => void
   loginUsername: string
   setLoginUsername: (value: string) => void
   loginPassword: string
@@ -19,6 +20,7 @@ export const LoginPage = ({
   authUsername,
   clearAuth,
   navigateHome,
+  navigateRegister,
   loginUsername,
   setLoginUsername,
   loginPassword,
@@ -32,7 +34,7 @@ export const LoginPage = ({
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-gray-900">Вход</h2>
         <p className="text-sm text-gray-600">
-          Используйте логин и пароль, чтобы получить доступ к заказам и персональным данным.
+          Используйте номер телефона и пароль, чтобы получить доступ к заказам и персональным данным.
         </p>
       </div>
 
@@ -54,12 +56,12 @@ export const LoginPage = ({
       ) : (
         <form className="mt-5 space-y-4" onSubmit={handleLoginSubmit}>
           <label className="block text-sm font-semibold text-gray-800">
-            Логин
+            Номер телефона
             <input
-              type="text"
+              type="tel"
               value={loginUsername}
               onChange={(event) => setLoginUsername(event.target.value)}
-              placeholder="Введите логин"
+              placeholder="Введите номер телефона"
               autoComplete="username"
               required
               className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
@@ -87,6 +89,16 @@ export const LoginPage = ({
           >
             {loginLoading ? 'Входим...' : 'Войти'}
           </button>
+          <p className="text-center text-sm text-gray-600">
+            Нет аккаунта?{' '}
+            <button
+              type="button"
+              onClick={navigateRegister}
+              className="font-semibold text-red-600 transition hover:text-red-700"
+            >
+              Зарегистрироваться
+            </button>
+          </p>
         </form>
       )}
     </div>
