@@ -6,15 +6,16 @@ GOAL
 - Support internal catalog management (admin tools and APIs).
 
 CURRENT STATE SUMMARY
-- Backend: Django REST API skeleton with a custom User model and a demo file storage service using MinIO.
-- Frontend: Vite + React + TypeScript + Tailwind; current UI is a backend/MinIO smoke test.
+- Backend: Django REST API with catalog, cart, and order endpoints, custom User model, JWT auth, and MinIO-backed media/file storage.
+- Frontend: Vite + React + TypeScript + Tailwind storefront with home, catalog, product, cart, login, and orders screens.
 - Infra: docker-compose with Django (gunicorn), nginx, Postgres, Redis, Celery worker/beat, MinIO.
 
 BACKEND DETAILS
 - Location: backend/
 - Stack: Django 6.0, djangorestframework 3.16.1, simplejwt 5.5.1, Celery 5.4, boto3
 - Apps:
-  - api: Hello endpoint and FileRecord model with presigned upload/download URLs.
+  - api: Public catalog endpoints, cart and order APIs, catalog-page aggregate endpoint, and MinIO presigned upload/download URLs.
+  - catalog/cart/orders: Domain models for storefront and checkout flow.
   - users: Custom User model with role (admin/manager) and role-based permission helpers.
 - Auth: JWT; default permission is IsAuthenticated (hello and file endpoints are AllowAny).
 - Storage: MinIO client for presigned PUT/GET; bucket created at startup (minio_setup.py).
@@ -23,11 +24,18 @@ BACKEND DETAILS
 FRONTEND DETAILS
 - Location: frontend/
 - Stack: Vite + React + TypeScript + Tailwind CSS v3.
-- App: Single page that calls /api/hello/ and tests MinIO presigned upload/download.
+- App: URL-based SPA-like navigation (history API) for /, /catalog, /product/:id, /cart, /login, /orders.
+- Catalog UI: server-driven category tree, product cards, and filter controls wired to backend query params.
+- Orders UX: authenticated users can create orders from cart and view order history.
 
 ROUTING / SERVICES
 - API:
   - /api/hello/
+  - /api/catalog-page/
+  - /api/categories/, /api/categories/main/
+  - /api/brands/, /api/banners/, /api/products/
+  - /api/carts/, /api/cart-items/
+  - /api/orders/
   - /api/files/presign-upload/
   - /api/files/{id}/presign-download/
   - /api/token/, /api/token/refresh/
@@ -39,10 +47,10 @@ DEV COMMANDS
 - Docker: docker compose up --build
 
 GAPS FOR CARBON69 GOALS
-- No product, catalog, or category models or endpoints.
-- No cart, checkout, orders, or customer account flows.
-- Frontend has no company branding, catalog UI, or marketing pages.
-- No search, filtering, or inventory management.
+- No online payment provider integration yet (planned separately).
+- Shipping carrier integration is model-level only; no shipping API/UI workflow yet.
+- No dedicated customer profile/registration/password recovery flows yet.
+- Search/filter UX is present but can be expanded (sort modes, numeric ranges, URL query persistence).
 
 NEXT STEP IDEAS
 - Define core domain models: Product, Category, Brand, Fitment, Inventory, Price.
