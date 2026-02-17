@@ -369,7 +369,6 @@ function App() {
   const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
-  const cartBonus = Math.round(cartSubtotal * 0.05)
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
   const [slides, setSlides] = useState<BannerSlide[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -1861,18 +1860,10 @@ function App() {
                       <span>Товаров: {cartItemsCount}</span>
                       <span>{formatPrice(cartSubtotal)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Бонусов за заказ</span>
-                      <span className="text-emerald-600">+{cartBonus}</span>
-                    </div>
                   </div>
                   <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-base font-semibold text-gray-900">
                     <span>Итого</span>
                     <span>{formatPrice(cartSubtotal)}</span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                    <span>Проверить совместимость</span>
-                    <input type="checkbox" className="h-4 w-4 accent-red-600" />
                   </div>
                   <button
                     type="button"
