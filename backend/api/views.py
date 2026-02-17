@@ -34,6 +34,58 @@ from storage import minio_client
 from .permissions import CartAccessPermission
 
 
+def _apply_attribute_filters(queryset, attribute_filters):
+    for entry in attribute_filters:
+        if ":" not in entry:
+            continue
+        attribute_id, raw_value = entry.split(":", 1)
+        if not attribute_id:
+            continue
+
+        value = raw_value.strip()
+        if ".." in value:
+            min_raw, max_raw = value.split("..", 1)
+            try:
+                min_value = float(min_raw) if min_raw else None
+                max_value = float(max_raw) if max_raw else None
+            except ValueError:
+                min_value = max_value = None
+
+            if min_value is not None:
+                queryset = queryset.filter(
+                    attributes__attribute_id=attribute_id,
+                    attributes__value_number__gte=min_value,
+                )
+            if max_value is not None:
+                queryset = queryset.filter(
+                    attributes__attribute_id=attribute_id,
+                    attributes__value_number__lte=max_value,
+                )
+            continue
+
+        if value.lower() in {"true", "false"}:
+            queryset = queryset.filter(
+                attributes__attribute_id=attribute_id,
+                attributes__value_boolean=value.lower() == "true",
+            )
+            continue
+
+        try:
+            number_value = float(value)
+        except ValueError:
+            queryset = queryset.filter(
+                attributes__attribute_id=attribute_id,
+                attributes__value_string=value,
+            )
+        else:
+            queryset = queryset.filter(
+                attributes__attribute_id=attribute_id,
+                attributes__value_number=number_value,
+            )
+
+    return queryset
+
+
 class HelloView(APIView):
     permission_classes = [AllowAny]
 
@@ -150,32 +202,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         if in_stock in {"1", "true", "yes"}:
             queryset = queryset.filter(stock_quantity__gt=F("stock_reserved"))
 
-        for entry in attribute_filters:
-            if ":" not in entry:
-                continue
-            attribute_id, raw_value = entry.split(":", 1)
-            if not attribute_id:
-                continue
-
-            value = raw_value.strip()
-            if value.lower() in {"true", "false"}:
-                queryset = queryset.filter(
-                    attributes__attribute_id=attribute_id,
-                    attributes__value_boolean=value.lower() == "true",
-                )
-            else:
-                try:
-                    number_value = float(value)
-                except ValueError:
-                    queryset = queryset.filter(
-                        attributes__attribute_id=attribute_id,
-                        attributes__value_string=value,
-                    )
-                else:
-                    queryset = queryset.filter(
-                        attributes__attribute_id=attribute_id,
-                        attributes__value_number=number_value,
-                    )
+        queryset = _apply_attribute_filters(queryset, attribute_filters)
 
         return queryset.order_by("name").distinct()
 
@@ -309,32 +336,7 @@ class CatalogPageView(APIView):
         if in_stock in {"1", "true", "yes"}:
             filtered_products = filtered_products.filter(stock_quantity__gt=F("stock_reserved"))
 
-        for entry in attribute_filters:
-            if ":" not in entry:
-                continue
-            attribute_id, raw_value = entry.split(":", 1)
-            if not attribute_id:
-                continue
-
-            value = raw_value.strip()
-            if value.lower() in {"true", "false"}:
-                filtered_products = filtered_products.filter(
-                    attributes__attribute_id=attribute_id,
-                    attributes__value_boolean=value.lower() == "true",
-                )
-            else:
-                try:
-                    number_value = float(value)
-                except ValueError:
-                    filtered_products = filtered_products.filter(
-                        attributes__attribute_id=attribute_id,
-                        attributes__value_string=value,
-                    )
-                else:
-                    filtered_products = filtered_products.filter(
-                        attributes__attribute_id=attribute_id,
-                        attributes__value_number=number_value,
-                    )
+        filtered_products = _apply_attribute_filters(filtered_products, attribute_filters)
 
         filtered_products = filtered_products.order_by("name").distinct()
 

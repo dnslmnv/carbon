@@ -10,6 +10,8 @@ type CatalogAttributeFilter = {
   id: number
   name: string
   unit: string
+  data_type: string
+  filter_type: string
   options: CatalogFilterOption[]
   range: {
     min: number
@@ -61,8 +63,10 @@ type CatalogPageProps = {
   setCatalogNameFilter: (value: string) => void
   setCatalogPage: (value: number | ((prev: number) => number)) => void
   toggleBrandFilter: (brandId: number) => void
-  toggleAttributeFilter: (attributeId: number, attributeValue: string) => void
+  toggleAttributeFilter: (attributeId: number, attributeValue: string, singleChoice?: boolean) => void
+  updateAttributeRangeFilter: (attributeId: number, bound: 'min' | 'max', value: string) => void
   selectedAttributeFilters: string[]
+  selectedAttributeRanges: Record<number, { min: string; max: string }>
   formatPrice: (value: number) => string
   onProductOpen: (productId: number) => void
 }
@@ -76,7 +80,9 @@ export const CatalogPage = ({
   setCatalogPage,
   toggleBrandFilter,
   toggleAttributeFilter,
+  updateAttributeRangeFilter,
   selectedAttributeFilters,
+  selectedAttributeRanges,
   formatPrice,
   onProductOpen,
 }: CatalogPageProps) => (
@@ -137,8 +143,32 @@ export const CatalogPage = ({
                 {attribute.unit ? `, ${attribute.unit}` : ''}
               </h3>
               {attribute.range ? (
-                <div className="text-xs text-gray-500">
-                  от {attribute.range.min} до {attribute.range.max}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder={String(attribute.range.min)}
+                      value={selectedAttributeRanges[attribute.id]?.min ?? ''}
+                      onChange={(event) =>
+                        updateAttributeRangeFilter(attribute.id, 'min', event.target.value)
+                      }
+                      className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-red-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder={String(attribute.range.max)}
+                      value={selectedAttributeRanges[attribute.id]?.max ?? ''}
+                      onChange={(event) =>
+                        updateAttributeRangeFilter(attribute.id, 'max', event.target.value)
+                      }
+                      className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-gray-700 focus:border-red-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    от {attribute.range.min} до {attribute.range.max}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -148,9 +178,16 @@ export const CatalogPage = ({
                       <label key={option.value} className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-2">
                           <input
-                            type="checkbox"
+                            type={attribute.filter_type === 'select' ? 'radio' : 'checkbox'}
+                            name={attribute.filter_type === 'select' ? `attribute-${attribute.id}` : undefined}
                             checked={selectedAttributeFilters.includes(value)}
-                            onChange={() => toggleAttributeFilter(attribute.id, option.value)}
+                            onChange={() =>
+                              toggleAttributeFilter(
+                                attribute.id,
+                                option.value,
+                                attribute.filter_type === 'select',
+                              )
+                            }
                             className="h-4 w-4 accent-red-600"
                           />
                           {option.label}
