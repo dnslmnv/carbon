@@ -973,6 +973,35 @@ function App() {
     setCatalogPage(1)
   }, [activeCatalogId])
 
+
+  useEffect(() => {
+    if (!catalogData) {
+      return
+    }
+
+    const allowedAttributeIds = new Set(catalogData.filters.attributes.map((attribute) => attribute.id))
+
+    setSelectedAttributeFilters((prev) => {
+      const next = prev.filter((entry) => {
+        const [attributeId] = entry.split(':', 1)
+        return allowedAttributeIds.has(Number(attributeId))
+      })
+      return next.length === prev.length ? prev : next
+    })
+
+    setSelectedAttributeRanges((prev) => {
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([attributeId]) => allowedAttributeIds.has(Number(attributeId))),
+      )
+      const prevKeys = Object.keys(prev)
+      const nextKeys = Object.keys(next)
+      if (prevKeys.length === nextKeys.length && prevKeys.every((key) => key in next)) {
+        return prev
+      }
+      return next
+    })
+  }, [catalogData])
+
   useEffect(() => {
     let isActive = true
 

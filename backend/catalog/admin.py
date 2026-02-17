@@ -25,7 +25,7 @@ class ProductAttributeValueInlineForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        product = cleaned_data.get("product")
+        product = cleaned_data.get("product") or getattr(self.instance, "product", None)
         attribute = cleaned_data.get("attribute")
         if product and attribute and attribute.category_id != product.category_id:
             raise ValidationError("Характеристика должна принадлежать категории товара.")
