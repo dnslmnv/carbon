@@ -63,11 +63,8 @@ export const CartPage = ({
                 key={item.id}
                 className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center"
               >
-                <div className="flex items-start gap-3">
-                  <input type="checkbox" className="mt-2 h-4 w-4 accent-red-600" />
-                  <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white p-2 shadow-sm">
-                    <img src={item.image} alt={item.title} className="h-12 w-12 object-contain" loading="lazy" />
-                  </div>
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white p-2 shadow-sm">
+                  <img src={item.image} alt={item.title} className="h-12 w-12 object-contain" loading="lazy" />
                 </div>
 
                 <div className="flex-1 space-y-3">
