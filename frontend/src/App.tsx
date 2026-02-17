@@ -419,12 +419,13 @@ function App() {
     options?: { productId?: number | null; catalogId?: number | null; replace?: boolean },
   ) => {
     const productId = options?.productId ?? null
-    const catalogId = options?.catalogId ?? null
+    const hasCatalogIdOption = options !== undefined && 'catalogId' in options
+    const catalogId = hasCatalogIdOption ? options.catalogId ?? null : activeCatalogId
     setPage(nextPage)
     if (nextPage === 'product') {
       setSelectedProductId(productId)
     }
-    if (nextPage === 'catalog') {
+    if (nextPage === 'catalog' && hasCatalogIdOption) {
       setActiveCatalogId(catalogId)
     }
     setIsCatalogOpen(false)
