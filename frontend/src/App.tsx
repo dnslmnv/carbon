@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 
 type Category = {
+  id: number
   title: string
   image: string
 }
@@ -207,6 +208,7 @@ type AppPage = 'home' | 'catalog' | 'product' | 'cart' | 'login' | 'orders'
 type AppRouteState = {
   page: AppPage
   productId: number | null
+  catalogId: number | null
 }
 
 type OrderResponse = {
@@ -274,33 +276,39 @@ const productApplicability = [
 
 const parseRouteFromLocation = (): AppRouteState => {
   if (typeof window === 'undefined') {
-    return { page: 'home', productId: null }
+    return { page: 'home', productId: null, catalogId: null }
   }
 
   const { pathname } = window.location
   const segments = pathname.split('/').filter(Boolean)
 
   if (segments[0] === 'catalog') {
-    return { page: 'catalog', productId: null }
+    const catalogId = Number(segments[1])
+    return {
+      page: 'catalog',
+      productId: null,
+      catalogId: Number.isFinite(catalogId) && catalogId > 0 ? catalogId : null,
+    }
   }
   if (segments[0] === 'cart') {
-    return { page: 'cart', productId: null }
+    return { page: 'cart', productId: null, catalogId: null }
   }
   if (segments[0] === 'login') {
-    return { page: 'login', productId: null }
+    return { page: 'login', productId: null, catalogId: null }
   }
   if (segments[0] === 'orders') {
-    return { page: 'orders', productId: null }
+    return { page: 'orders', productId: null, catalogId: null }
   }
   if (segments[0] === 'product') {
     const productId = Number(segments[1])
     return {
       page: Number.isFinite(productId) && productId > 0 ? 'product' : 'home',
       productId: Number.isFinite(productId) && productId > 0 ? productId : null,
+      catalogId: null,
     }
   }
 
-  return { page: 'home', productId: null }
+  return { page: 'home', productId: null, catalogId: null }
 }
 
 function App() {
@@ -332,7 +340,7 @@ function App() {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false)
   const initialRoute = parseRouteFromLocation()
   const [page, setPage] = useState<AppPage>(initialRoute.page)
-  const [activeCatalogId, setActiveCatalogId] = useState<number | null>(null)
+  const [activeCatalogId, setActiveCatalogId] = useState<number | null>(initialRoute.catalogId)
   const [catalogPage, setCatalogPage] = useState(1)
   const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
   const [catalogError, setCatalogError] = useState(false)
@@ -384,9 +392,11 @@ function App() {
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orders, setOrders] = useState<OrderResponse[]>([])
 
-  const buildPath = (nextPage: AppPage, productId?: number | null) => {
+  const buildPath = (nextPage: AppPage, options?: { productId?: number | null; catalogId?: number | null }) => {
+    const productId = options?.productId ?? null
+    const catalogId = options?.catalogId ?? null
     if (nextPage === 'catalog') {
-      return '/catalog'
+      return catalogId ? `/catalog/${catalogId}` : '/catalog'
     }
     if (nextPage === 'cart') {
       return '/cart'
@@ -403,14 +413,22 @@ function App() {
     return '/'
   }
 
-  const navigate = (nextPage: AppPage, options?: { productId?: number | null; replace?: boolean }) => {
+  const navigate = (
+    nextPage: AppPage,
+    options?: { productId?: number | null; catalogId?: number | null; replace?: boolean },
+  ) => {
     const productId = options?.productId ?? null
+    const hasCatalogIdOption = options !== undefined && 'catalogId' in options
+    const catalogId = hasCatalogIdOption ? options.catalogId ?? null : activeCatalogId
     setPage(nextPage)
     if (nextPage === 'product') {
       setSelectedProductId(productId)
     }
+    if (nextPage === 'catalog' && hasCatalogIdOption) {
+      setActiveCatalogId(catalogId)
+    }
     setIsCatalogOpen(false)
-    const targetPath = buildPath(nextPage, productId)
+    const targetPath = buildPath(nextPage, { productId, catalogId })
     if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
       const method = options?.replace ? 'replaceState' : 'pushState'
       window.history[method]({}, '', targetPath)
@@ -427,6 +445,7 @@ function App() {
       const route = parseRouteFromLocation()
       setPage(route.page)
       setSelectedProductId(route.productId)
+      setActiveCatalogId(route.catalogId)
       setIsCatalogOpen(false)
     }
 
@@ -894,6 +913,7 @@ function App() {
           data
             .filter((category) => category.image_url)
             .map((category) => ({
+              id: category.id,
               title: category.name,
               image: category.image_url,
             })),
@@ -1964,19 +1984,14 @@ function App() {
             <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 lg:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">Популярные категории</h2>
-                <button
-                  type="button"
-                  onClick={() => navigate('catalog')}
-                  className="self-start text-sm font-semibold text-red-600 underline decoration-2 underline-offset-4 transition hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                >
-                  Смотреть каталог целиком
-                </button>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {categories.map((category) => (
-                  <article
-                    key={category.title}
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => navigate('catalog', { catalogId: category.id })}
                     className="group flex h-full min-h-[180px] flex-col gap-3 rounded-2xl bg-gray-100 p-4 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-gray-200"
                   >
                     <h3 className="text-sm font-semibold text-gray-900 group-hover:text-red-700">
@@ -1992,7 +2007,7 @@ function App() {
                         />
                       </div>
                     </div>
-                  </article>
+                  </button>
                 ))}
               </div>
             </section>
