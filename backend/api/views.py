@@ -557,10 +557,20 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
 
     def get_queryset(self):
-        queryset = Order.objects.prefetch_related("items")
-        if self.request.user.is_authenticated:
-            return queryset.filter(user=self.request.user)
-        return queryset.none()
+        queryset = Order.objects.select_related("user").prefetch_related("items__product")
+        user = self.request.user
+        if not user.is_authenticated:
+            return queryset.none()
+
+        user_id = self.request.query_params.get("user_id")
+        if user_id and user.is_staff:
+            queryset = queryset.filter(user_id=user_id)
+        elif user_id:
+            queryset = queryset.filter(user_id=user.id)
+        else:
+            queryset = queryset.filter(user=user)
+
+        return queryset.order_by("-created_at")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

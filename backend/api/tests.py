@@ -277,6 +277,9 @@ class OrderSerializerTests(APITestBase):
         self.assertEqual(OrderItem.objects.count(), 1)
         self.assertEqual(order.subtotal, Decimal("50.00"))
         self.assertEqual(order.grand_total, Decimal("56.00"))
+        self.assertEqual(order.payment_status, Order.PaymentStatus.NOT_PAID)
+        self.assertEqual(order.status, Order.Status.IN_WORK)
+        self.assertEqual(order.items.first().product_id, self.product.id)
         self.assertEqual(self.product.stock_quantity, 8)
 
     def test_order_serializer_blocks_insufficient_stock(self):
@@ -308,6 +311,52 @@ class OrderViewSetTests(APITestBase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.json()), 1)
+
+    def test_order_list_ordered_by_created_at_desc(self):
+        self.client.force_authenticate(user=self.user)
+        older_order = Order.objects.create(user=self.user)
+        newer_order = Order.objects.create(user=self.user)
+
+        response = self.client.get("/api/orders/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload[0]["id"], newer_order.id)
+        self.assertEqual(payload[1]["id"], older_order.id)
+
+    def test_staff_can_filter_orders_by_user_id(self):
+        other_user = User.objects.create_user(
+            username="other",
+            email="other@example.com",
+            password="password",
+        )
+        staff_user = User.objects.create_user(
+            username="staff",
+            email="staff@example.com",
+            password="password",
+        )
+        staff_user.role = User.Role.ADMIN
+        staff_user.save(update_fields=["role"])
+        own_order = Order.objects.create(user=staff_user)
+        filtered_order = Order.objects.create(user=other_user)
+
+        self.client.force_authenticate(user=staff_user)
+        response = self.client.get(f"/api/orders/?user_id={other_user.id}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["id"], filtered_order.id)
+        self.assertNotEqual(payload[0]["id"], own_order.id)
+
+    def test_order_detail_returns_order_by_id(self):
+        order = Order.objects.create(user=self.user)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(f"/api/orders/{order.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["id"], order.id)
 
 
 class FileRecordModelTests(TestCase):

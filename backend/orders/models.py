@@ -5,19 +5,26 @@ from catalog.models import Product
 
 
 class Order(models.Model):
-    class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
+    class PaymentStatus(models.TextChoices):
+        NOT_PAID = "not_paid", "Not paid"
         PAID = "paid", "Paid"
-        FAILED = "failed", "Failed"
-        SHIPPED = "shipped", "Shipped"
-        DELIVERED = "delivered", "Delivered"
-        CANCELED = "canceled", "Canceled"
+
+    class Status(models.TextChoices):
+        IN_WORK = "in_work", "In work"
+        ASSEMBLY = "assembly", "Assembly"
+        SHIPPING = "shipping", "Shipping"
+        COMPLETE = "complete", "Complete"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
     )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.NOT_PAID,
+    )
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PENDING
+        max_length=20, choices=Status.choices, default=Status.IN_WORK
     )
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
