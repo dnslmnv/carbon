@@ -21,7 +21,7 @@ import {
 import { CartPage } from './components/CartPage'
 import { CatalogPage as CatalogPageSection } from './components/CatalogPage'
 import { LoginPage } from './components/LoginPage'
-import { OrdersPage } from './components/OrdersPage'
+import { PersonalAccountPage } from './components/PersonalAccountPage'
 import { ParentCategoryPage } from './components/ParentCategoryPage'
 import { RegisterPage } from './components/RegisterPage'
 import { DeliveryPage } from './components/legal/DeliveryPage'
@@ -216,7 +216,7 @@ type AppPage =
   | 'cart'
   | 'login'
   | 'register'
-  | 'orders'
+  | 'account'
   | LegalPageKey
 
 type AppRouteState = {
@@ -317,8 +317,8 @@ const parseRouteFromLocation = (): AppRouteState => {
   if (segments[0] === 'register') {
     return { page: 'register', productId: null, catalogId: null, catalogSlug: null }
   }
-  if (segments[0] === 'orders') {
-    return { page: 'orders', productId: null, catalogId: null, catalogSlug: null }
+  if (segments[0] === 'account' || segments[0] === 'orders') {
+    return { page: 'account', productId: null, catalogId: null, catalogSlug: null }
   }
   if (segments[0] === 'delivery') {
     return { page: 'delivery', productId: null, catalogId: null, catalogSlug: null }
@@ -418,7 +418,7 @@ function App() {
   const isLoginPage = page === 'login'
   const isRegisterPage = page === 'register'
   const isAuthPage = isLoginPage || isRegisterPage
-  const isOrdersPage = page === 'orders'
+  const isAccountPage = page === 'account'
   const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
@@ -462,8 +462,8 @@ function App() {
     if (nextPage === 'login') {
       return '/login'
     }
-    if (nextPage === 'orders') {
-      return '/orders'
+    if (nextPage === 'account') {
+      return '/account'
     }
     if (nextPage === 'register') {
       return '/register'
@@ -853,7 +853,7 @@ function App() {
 
       setCartItems([])
       await loadOrders()
-      navigate('orders')
+      navigate('account')
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Не удалось оформить заказ.')
     } finally {
@@ -947,11 +947,11 @@ function App() {
   }, [apiBaseUrl])
 
   useEffect(() => {
-    if (!isOrdersPage || !isAuthenticated) {
+    if (!isAccountPage || !isAuthenticated) {
       return
     }
     void loadOrders()
-  }, [isOrdersPage, isAuthenticated])
+  }, [isAccountPage, isAuthenticated])
 
   useEffect(() => {
     let isActive = true
@@ -1376,7 +1376,7 @@ function App() {
               <NavIconButton label="Корзина" onClick={() => navigate('cart')}>
                 <ShoppingCart className="h-5 w-5" aria-hidden />
               </NavIconButton>
-              <NavIconButton label="Заказы" onClick={() => navigate('orders')}>
+              <NavIconButton label="Личный кабинет" onClick={() => navigate('account')}>
                 <Package className="h-5 w-5" aria-hidden />
               </NavIconButton>
               {isAuthenticated ? (
@@ -1813,13 +1813,15 @@ function App() {
             orderLoading={orderLoading}
             orderError={orderError}
           />
-        ) : isOrdersPage ? (
-          <OrdersPage
+        ) : isAccountPage ? (
+          <PersonalAccountPage
             isAuthenticated={isAuthenticated}
+            authUsername={authUsername}
             orderLoading={orderLoading}
             orderError={orderError}
             orders={orders}
             formatPrice={formatPrice}
+            onLoginClick={() => navigate('login')}
           />
         ) : (
           <>
