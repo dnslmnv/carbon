@@ -576,6 +576,8 @@ function App() {
   const clearAuth = () => {
     setAuthTokens(null)
     setAuthUsername(null)
+    setOrders([])
+    setSelectedOrderId(null)
     try {
       localStorage.removeItem(authStorageKey)
       localStorage.removeItem(authUsernameKey)
@@ -1858,7 +1860,7 @@ function App() {
             onLoginClick={() => navigate('login')}
             onOpenOrder={(orderId) => navigate('orderDetails', { orderId })}
           />
-        ) : isOrderDetailsPage ? (
+        ) : isOrderDetailsPage && isAuthenticated ? (
           <OrderDetailsPage
             order={selectedOrder}
             formatPrice={formatPrice}
