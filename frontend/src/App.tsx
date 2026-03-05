@@ -22,6 +22,7 @@ import { CartPage } from './components/CartPage'
 import { CatalogPage as CatalogPageSection } from './components/CatalogPage'
 import { LoginPage } from './components/LoginPage'
 import { PersonalAccountPage } from './components/PersonalAccountPage'
+import { OrderDetailsPage } from './components/OrderDetailsPage'
 import { ParentCategoryPage } from './components/ParentCategoryPage'
 import { RegisterPage } from './components/RegisterPage'
 import { DeliveryPage } from './components/legal/DeliveryPage'
@@ -217,6 +218,7 @@ type AppPage =
   | 'login'
   | 'register'
   | 'account'
+  | 'orderDetails'
   | LegalPageKey
 
 type AppRouteState = {
@@ -224,6 +226,7 @@ type AppRouteState = {
   productId: number | null
   catalogId: number | null
   catalogSlug: string | null
+  orderId: number | null
 }
 
 type OrderResponse = {
@@ -291,7 +294,7 @@ const productApplicability = [
 
 const parseRouteFromLocation = (): AppRouteState => {
   if (typeof window === 'undefined') {
-    return { page: 'home', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'home', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
 
   const { pathname } = window.location
@@ -306,34 +309,46 @@ const parseRouteFromLocation = (): AppRouteState => {
       catalogId: Number.isFinite(catalogId) && catalogId > 0 ? catalogId : null,
       catalogSlug:
         rawSegment && (!Number.isFinite(catalogId) || catalogId <= 0) ? rawSegment : null,
+      orderId: null,
     }
   }
   if (segments[0] === 'cart') {
-    return { page: 'cart', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'cart', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'login') {
-    return { page: 'login', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'login', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'register') {
-    return { page: 'register', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'register', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'account' || segments[0] === 'orders') {
-    return { page: 'account', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'account', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'delivery') {
-    return { page: 'delivery', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'delivery', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'payment') {
-    return { page: 'payment', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'payment', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'returns') {
-    return { page: 'returns', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'returns', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'refund') {
-    return { page: 'refund', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'refund', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
   if (segments[0] === 'policy') {
-    return { page: 'policy', productId: null, catalogId: null, catalogSlug: null }
+    return { page: 'policy', productId: null, catalogId: null, catalogSlug: null, orderId: null }
+  }
+
+  if (segments[0] === 'order') {
+    const orderId = Number(segments[1])
+    return {
+      page: Number.isFinite(orderId) && orderId > 0 ? 'orderDetails' : 'account',
+      productId: null,
+      catalogId: null,
+      catalogSlug: null,
+      orderId: Number.isFinite(orderId) && orderId > 0 ? orderId : null,
+    }
   }
   if (segments[0] === 'product') {
     const productId = Number(segments[1])
@@ -342,15 +357,16 @@ const parseRouteFromLocation = (): AppRouteState => {
       productId: Number.isFinite(productId) && productId > 0 ? productId : null,
       catalogId: null,
       catalogSlug: null,
+      orderId: null,
     }
   }
 
   const [firstSegment] = segments
   if (firstSegment) {
-    return { page: 'catalog', productId: null, catalogId: null, catalogSlug: firstSegment }
+    return { page: 'catalog', productId: null, catalogId: null, catalogSlug: firstSegment, orderId: null }
   }
 
-  return { page: 'home', productId: null, catalogId: null, catalogSlug: null }
+  return { page: 'home', productId: null, catalogId: null, catalogSlug: null, orderId: null }
 }
 
 function App() {
@@ -388,6 +404,7 @@ function App() {
   const [catalogData, setCatalogData] = useState<CatalogPageResponse | null>(null)
   const [catalogError, setCatalogError] = useState(false)
   const [selectedProductId, setSelectedProductId] = useState<number | null>(initialRoute.productId)
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(initialRoute.orderId)
   const [productData, setProductData] = useState<ProductDetail | null>(null)
   const [productError, setProductError] = useState(false)
   const [productLoading, setProductLoading] = useState(false)
@@ -419,6 +436,7 @@ function App() {
   const isRegisterPage = page === 'register'
   const isAuthPage = isLoginPage || isRegisterPage
   const isAccountPage = page === 'account'
+  const isOrderDetailsPage = page === 'orderDetails'
   const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
@@ -445,7 +463,7 @@ function App() {
 
   const buildPath = (
     nextPage: AppPage,
-    options?: { productId?: number | null; catalogId?: number | null; catalogSlug?: string | null },
+    options?: { productId?: number | null; catalogId?: number | null; catalogSlug?: string | null; orderId?: number | null },
   ) => {
     const productId = options?.productId ?? null
     const catalogId = options?.catalogId ?? null
@@ -468,6 +486,9 @@ function App() {
     if (nextPage === 'register') {
       return '/register'
     }
+    if (nextPage === 'orderDetails' && options?.orderId) {
+      return `/order/${options.orderId}`
+    }
     if (nextPage === 'product' && productId) {
       return `/product/${productId}`
     }
@@ -479,9 +500,16 @@ function App() {
 
   const navigate = (
     nextPage: AppPage,
-    options?: { productId?: number | null; catalogId?: number | null; catalogSlug?: string | null; replace?: boolean },
+    options?: {
+      productId?: number | null
+      catalogId?: number | null
+      catalogSlug?: string | null
+      orderId?: number | null
+      replace?: boolean
+    },
   ) => {
     const productId = options?.productId ?? null
+    const orderId = options?.orderId ?? null
     const hasCatalogIdOption = options !== undefined && 'catalogId' in options
     const hasCatalogSlugOption = options !== undefined && 'catalogSlug' in options
     const catalogId = hasCatalogIdOption ? options.catalogId ?? null : activeCatalogId
@@ -495,6 +523,9 @@ function App() {
     if (nextPage === 'product') {
       setSelectedProductId(productId)
     }
+    if (nextPage === 'orderDetails') {
+      setSelectedOrderId(orderId)
+    }
     if (nextPage === 'catalog' && hasCatalogIdOption) {
       setActiveCatalogId(catalogId)
     }
@@ -502,7 +533,7 @@ function App() {
       setActiveCatalogSlug(catalogSlug)
     }
     setIsCatalogOpen(false)
-    const targetPath = buildPath(nextPage, { productId, catalogId, catalogSlug })
+    const targetPath = buildPath(nextPage, { productId, catalogId, catalogSlug, orderId })
     if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
       const method = options?.replace ? 'replaceState' : 'pushState'
       window.history[method]({}, '', targetPath)
@@ -521,6 +552,7 @@ function App() {
       setSelectedProductId(route.productId)
       setActiveCatalogId(route.catalogId)
       setActiveCatalogSlug(route.catalogSlug)
+      setSelectedOrderId(route.orderId)
       setIsCatalogOpen(false)
     }
 
@@ -947,11 +979,11 @@ function App() {
   }, [apiBaseUrl])
 
   useEffect(() => {
-    if (!isAccountPage || !isAuthenticated) {
+    if ((!isAccountPage && !isOrderDetailsPage) || !isAuthenticated) {
       return
     }
     void loadOrders()
-  }, [isAccountPage, isAuthenticated])
+  }, [isAccountPage, isOrderDetailsPage, isAuthenticated])
 
   useEffect(() => {
     let isActive = true
@@ -1228,6 +1260,8 @@ function App() {
       Boolean,
     ) as string[]
   }, [productData])
+  const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId])
+
   const productMedia = useMemo(() => {
     if (!productData?.media?.length) {
       return null
@@ -1822,6 +1856,13 @@ function App() {
             orders={orders}
             formatPrice={formatPrice}
             onLoginClick={() => navigate('login')}
+            onOpenOrder={(orderId) => navigate('orderDetails', { orderId })}
+          />
+        ) : isOrderDetailsPage ? (
+          <OrderDetailsPage
+            order={selectedOrder}
+            formatPrice={formatPrice}
+            onBackToAccount={() => navigate('account')}
           />
         ) : (
           <>

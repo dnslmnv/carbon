@@ -23,6 +23,7 @@ type PersonalAccountPageProps = {
   orders: OrderResponse[]
   formatPrice: (value: number) => string
   onLoginClick: () => void
+  onOpenOrder: (orderId: number) => void
 }
 
 export const PersonalAccountPage = ({
@@ -33,6 +34,7 @@ export const PersonalAccountPage = ({
   orders,
   formatPrice,
   onLoginClick,
+  onOpenOrder,
 }: PersonalAccountPageProps) => (
   <>
     <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
@@ -89,6 +91,13 @@ export const PersonalAccountPage = ({
               <div className="mt-3 border-t border-gray-100 pt-2 text-right text-sm font-semibold text-gray-900">
                 Итого: {formatPrice(Number(order.grand_total))}
               </div>
+              <button
+                type="button"
+                onClick={() => onOpenOrder(order.id)}
+                className="mt-3 inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:text-gray-900"
+              >
+                Подробнее о заказе
+              </button>
             </article>
           ))
         : null}
