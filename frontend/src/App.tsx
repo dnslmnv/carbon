@@ -24,6 +24,12 @@ import { LoginPage } from './components/LoginPage'
 import { OrdersPage } from './components/OrdersPage'
 import { ParentCategoryPage } from './components/ParentCategoryPage'
 import { RegisterPage } from './components/RegisterPage'
+import { DeliveryPage } from './components/legal/DeliveryPage'
+import { PaymentPage } from './components/legal/PaymentPage'
+import { PolicyPage } from './components/legal/PolicyPage'
+import { RefundPage } from './components/legal/RefundPage'
+import { ReturnsPage } from './components/legal/ReturnsPage'
+import { type LegalPageKey, legalPagePathMap } from './components/legal/legalContent'
 
 type Category = {
   id: number
@@ -203,7 +209,15 @@ type AuthTokens = {
   refresh: string
 }
 
-type AppPage = 'home' | 'catalog' | 'product' | 'cart' | 'login' | 'register' | 'orders'
+type AppPage =
+  | 'home'
+  | 'catalog'
+  | 'product'
+  | 'cart'
+  | 'login'
+  | 'register'
+  | 'orders'
+  | LegalPageKey
 
 type AppRouteState = {
   page: AppPage
@@ -305,6 +319,21 @@ const parseRouteFromLocation = (): AppRouteState => {
   }
   if (segments[0] === 'orders') {
     return { page: 'orders', productId: null, catalogId: null, catalogSlug: null }
+  }
+  if (segments[0] === 'delivery') {
+    return { page: 'delivery', productId: null, catalogId: null, catalogSlug: null }
+  }
+  if (segments[0] === 'payment') {
+    return { page: 'payment', productId: null, catalogId: null, catalogSlug: null }
+  }
+  if (segments[0] === 'returns') {
+    return { page: 'returns', productId: null, catalogId: null, catalogSlug: null }
+  }
+  if (segments[0] === 'refund') {
+    return { page: 'refund', productId: null, catalogId: null, catalogSlug: null }
+  }
+  if (segments[0] === 'policy') {
+    return { page: 'policy', productId: null, catalogId: null, catalogSlug: null }
   }
   if (segments[0] === 'product') {
     const productId = Number(segments[1])
@@ -441,6 +470,9 @@ function App() {
     }
     if (nextPage === 'product' && productId) {
       return `/product/${productId}`
+    }
+    if (nextPage in legalPagePathMap) {
+      return legalPagePathMap[nextPage as LegalPageKey]
     }
     return '/'
   }
@@ -1237,13 +1269,11 @@ function App() {
       {
         title: 'Клиентам',
         links: [
-          'Условия доставки',
-          'Способы оплаты',
-          'Возврат товара',
-          'Возврат средств',
-          'Как сделать заказ',
-          'Условия работы для клиентов',
-          'Политика конфиденциальности',
+          { label: 'Условия доставки', page: 'delivery' as const },
+          { label: 'Способы оплаты', page: 'payment' as const },
+          { label: 'Возврат товара', page: 'returns' as const },
+          { label: 'Возврат средств', page: 'refund' as const },
+          { label: 'Политика конфиденциальности', page: 'policy' as const },
         ],
       },
       {
@@ -1758,6 +1788,16 @@ function App() {
               ) : null}
             </section>
           </>
+        ) : page === 'delivery' ? (
+          <DeliveryPage />
+        ) : page === 'payment' ? (
+          <PaymentPage />
+        ) : page === 'returns' ? (
+          <ReturnsPage />
+        ) : page === 'refund' ? (
+          <RefundPage />
+        ) : page === 'policy' ? (
+          <PolicyPage />
         ) : isCartPage ? (
           <CartPage
             cartLoading={cartLoading}
@@ -2038,8 +2078,21 @@ function App() {
                 <h3 className="text-base font-semibold text-gray-900">{section.title}</h3>
                 <ul className="space-y-2 text-sm text-gray-700">
                   {section.links.map((link) => (
-                    <li key={link} className="transition hover:text-red-700">
-                      <a href="#">{link}</a>
+                    <li
+                      key={typeof link === 'string' ? link : link.label}
+                      className="transition hover:text-red-700"
+                    >
+                      {typeof link === 'string' ? (
+                        <a href="#">{link}</a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigate(link.page)}
+                          className="text-left"
+                        >
+                          {link.label}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
