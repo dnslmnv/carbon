@@ -19,7 +19,9 @@ dev-restart:
 	$(COMPOSE_DEV) up -d --build
 
 prod-up:
-	$(COMPOSE_PROD) up -d
+	git pull --ff-only
+	$(COMPOSE_PROD) down --remove-orphans
+	$(COMPOSE_PROD) up -d --build --force-recreate
 
 prod-down:
 	$(COMPOSE_PROD) down
@@ -28,5 +30,4 @@ prod-restart:
 	$(COMPOSE_PROD) restart
 
 prod-update:
-	git pull
-	$(COMPOSE_PROD) up -d --build
+	$(MAKE) prod-up
