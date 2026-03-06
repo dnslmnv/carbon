@@ -226,7 +226,11 @@ export const CatalogPage = ({
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(catalogData?.products.results ?? []).map((product) => (
-            <article key={product.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+            <article
+              key={product.id}
+              className="cursor-pointer rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 transition hover:-translate-y-0.5 hover:shadow-md"
+              onClick={() => onProductOpen(product.id)}
+            >
               <div className="flex aspect-square items-center justify-center rounded-xl bg-gray-100">
                 <img
                   src={product.image_url || '/categories/avtosvet.png'}
@@ -243,7 +247,10 @@ export const CatalogPage = ({
                 <p className="text-xs text-gray-500">{product.brand_name}</p>
                 <button
                   type="button"
-                  onClick={() => onProductOpen(product.id)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onProductOpen(product.id)
+                  }}
                   className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                 >
                   от {formatPrice(Number(product.price))}

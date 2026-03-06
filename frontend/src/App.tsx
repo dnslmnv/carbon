@@ -13,7 +13,6 @@ import {
   Search,
   Send,
   ShoppingCart,
-  Star,
   Users,
   X,
   Youtube,
@@ -276,20 +275,9 @@ type CartResponse = {
   items: CartItemResponse[]
 }
 
-const productRating = 4.5
-const productReviews = 12
-
 const productDelivery = [
-  { label: 'Экспресс', value: 'от 15 минут' },
   { label: 'Курьером', value: 'от 1 дня' },
   { label: 'Самовывоз', value: 'Бесплатно' },
-]
-
-const productApplicability = [
-  'Петли и замки',
-  'Тросики и механизмы',
-  'Резьбовые соединения',
-  'Автозамки и петли дверей',
 ]
 
 const parseRouteFromLocation = (): AppRouteState => {
@@ -437,7 +425,6 @@ function App() {
   const isAuthPage = isLoginPage || isRegisterPage
   const isAccountPage = page === 'account'
   const isOrderDetailsPage = page === 'orderDetails'
-  const [productTab, setProductTab] = useState<'about' | 'fitment' | 'reviews'>('about')
   const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0)
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
@@ -1678,13 +1665,6 @@ function App() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <h2 className="text-lg font-semibold text-gray-900">{productSubtitle}</h2>
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1 text-red-600">
-                          <Star className="h-3 w-3" aria-hidden />
-                          {productRating.toFixed(1)}
-                        </span>
-                        <span>{productReviews} оценок</span>
-                      </div>
                     </div>
 
                     <div className="space-y-2 text-sm text-gray-700">
@@ -1738,7 +1718,7 @@ function App() {
 
                     <div className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700 shadow-sm">
                       <p className="text-sm font-semibold text-gray-900">
-                        Способы получения из магазина
+                        Способы получения
                       </p>
                       <div className="mt-3 space-y-2">
                         {productDelivery.map((option) => (
@@ -1757,71 +1737,9 @@ function App() {
               </div>
             </section>
 
-            <section className="mt-6 flex flex-wrap items-center gap-4 text-sm font-semibold text-gray-500">
-              <button
-                type="button"
-                onClick={() => setProductTab('about')}
-                className={`rounded-full px-4 py-2 transition ${
-                  productTab === 'about' ? 'bg-gray-900 text-white' : 'bg-gray-100'
-                }`}
-              >
-                О товаре
-              </button>
-              <button
-                type="button"
-                onClick={() => setProductTab('fitment')}
-                className={`rounded-full px-4 py-2 transition ${
-                  productTab === 'fitment' ? 'bg-gray-900 text-white' : 'bg-gray-100'
-                }`}
-              >
-                Применимость
-              </button>
-              <button
-                type="button"
-                onClick={() => setProductTab('reviews')}
-                className={`rounded-full px-4 py-2 transition ${
-                  productTab === 'reviews' ? 'bg-gray-900 text-white' : 'bg-gray-100'
-                }`}
-              >
-                Оценки и отзывы <span className="ml-1 text-xs text-red-600">{productReviews}</span>
-              </button>
-            </section>
-
             <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              {productTab === 'about' ? (
-                <>
-                  <h3 className="text-base font-semibold text-gray-900">Описание</h3>
-                  <p className="mt-2 text-sm text-gray-700">{productDescription}</p>
-                </>
-              ) : null}
-              {productTab === 'fitment' ? (
-                <>
-                  <h3 className="text-base font-semibold text-gray-900">Применимость</h3>
-                  <ul className="mt-2 space-y-2 text-sm text-gray-700">
-                    {productApplicability.map((item) => (
-                      <li key={item} className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-red-600" aria-hidden />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
-              {productTab === 'reviews' ? (
-                <>
-                  <h3 className="text-base font-semibold text-gray-900">Отзывы покупателей</h3>
-                  <div className="mt-2 space-y-3 text-sm text-gray-700">
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <p className="font-semibold text-gray-900">Отличная смазка</p>
-                      <p className="text-xs text-gray-500">Проверено временем, удобно наносится.</p>
-                    </div>
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <p className="font-semibold text-gray-900">Хороший эффект</p>
-                      <p className="text-xs text-gray-500">Сняла скрип за пару минут.</p>
-                    </div>
-                  </div>
-                </>
-              ) : null}
+              <h3 className="text-base font-semibold text-gray-900">Описание</h3>
+              <p className="mt-2 text-sm text-gray-700">{productDescription}</p>
             </section>
           </>
         ) : page === 'delivery' ? (
@@ -2146,7 +2064,7 @@ function App() {
           </div>
 
           <div className="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-700">
-            <p className="text-center">© 2025 Carbon 69: интернет-магазин автозапчастей</p>
+            <p className="text-center">© 2025 Carbon 69: интернет-магазин автозапчастей ИП КОЛОС ОЛЕГ ОЛЕГОВИЧ</p>
           </div>
             </footer>
           </>

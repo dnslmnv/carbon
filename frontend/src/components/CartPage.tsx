@@ -73,7 +73,6 @@ export const CartPage = ({
                       <p className="text-sm font-semibold text-gray-900">
                         {item.title} <span className="text-xs text-gray-400">{item.sku}</span>
                       </p>
-                      <p className="text-xs text-gray-500">{item.description}</p>
                       <p className="text-xs text-gray-400">{item.meta}</p>
                     </div>
                     <div className="text-right">
