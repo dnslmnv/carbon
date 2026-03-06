@@ -120,6 +120,17 @@ Run these on the server in the repo folder.
   ```bash
   make prod-up
   ```
+  - Starts `db`, `backend`, `minio`, and `nginx` only (does not start `certbot` as a long-running service).
+
+- Force HTTP-only Nginx mode (useful for ACME bootstrap):
+  ```bash
+  make prod-up-http
+  ```
+
+- Force HTTPS Nginx mode after certificates are issued:
+  ```bash
+  make prod-up-https
+  ```
 - Restart running production containers:
   ```bash
   make prod-restart
