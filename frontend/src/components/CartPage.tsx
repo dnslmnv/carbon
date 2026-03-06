@@ -143,7 +143,13 @@ export const CartPage = ({
             {orderLoading ? 'Оформляем...' : 'Оформить заказ'}
           </button>
           {orderError ? <p className="mt-2 text-xs text-red-600">{orderError}</p> : null}
-          <p className="mt-2 text-xs text-gray-400">Нажимая "Оформить заказ", вы соглашаетесь с офертой.</p>
+          <p className="mt-2 text-xs text-gray-400">
+            Нажимая кнопку «Оформить заказ», вы соглашаетесь с{' '}
+            <a href="/policy" className="text-red-600 underline hover:text-red-700">
+              политикой конфиденциальности
+            </a>
+            .
+          </p>
         </div>
 
       </div>
