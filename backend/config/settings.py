@@ -222,6 +222,18 @@ CORS_ALLOWED_ORIGINS = []
 raw_cors = os.getenv("CORS_ALLOWED_ORIGINS")
 if raw_cors:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
+
+CSRF_TRUSTED_ORIGINS = []
+raw_csrf_trusted_origins = os.getenv("CSRF_TRUSTED_ORIGINS")
+if raw_csrf_trusted_origins:
+    CSRF_TRUSTED_ORIGINS = [
+        origin.strip()
+        for origin in raw_csrf_trusted_origins.split(",")
+        if origin.strip()
+    ]
+elif CORS_ALLOWED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
