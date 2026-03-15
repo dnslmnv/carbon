@@ -5,6 +5,7 @@ import {
   Clock3,
   Flame,
   LogIn,
+  Mail,
   MapPin,
   Menu,
   Package,
@@ -25,6 +26,7 @@ import { OrderDetailsPage } from './components/OrderDetailsPage'
 import { ParentCategoryPage } from './components/ParentCategoryPage'
 import { RegisterPage } from './components/RegisterPage'
 import { DeliveryPage } from './components/legal/DeliveryPage'
+import { OfferPage } from './components/legal/OfferPage'
 import { PaymentPage } from './components/legal/PaymentPage'
 import { PolicyPage } from './components/legal/PolicyPage'
 import { RefundPage } from './components/legal/RefundPage'
@@ -326,6 +328,9 @@ const parseRouteFromLocation = (): AppRouteState => {
   }
   if (segments[0] === 'policy') {
     return { page: 'policy', productId: null, catalogId: null, catalogSlug: null, orderId: null }
+  }
+  if (segments[0] === 'offer') {
+    return { page: 'offer', productId: null, catalogId: null, catalogSlug: null, orderId: null }
   }
 
   if (segments[0] === 'order') {
@@ -1296,6 +1301,7 @@ function App() {
           { label: 'Способы оплаты', page: 'payment' as const },
           { label: 'Возврат товара', page: 'returns' as const },
           { label: 'Возврат средств', page: 'refund' as const },
+          { label: 'Публичная оферта', page: 'offer' as const },
           { label: 'Политика конфиденциальности', page: 'policy' as const },
         ],
       },
@@ -1752,6 +1758,8 @@ function App() {
           <RefundPage />
         ) : page === 'policy' ? (
           <PolicyPage />
+        ) : page === 'offer' ? (
+          <OfferPage />
         ) : isCartPage ? (
           <CartPage
             cartLoading={cartLoading}
@@ -2009,6 +2017,18 @@ function App() {
                   <a href="tel:+79040224334" className="font-semibold text-red-600 hover:text-red-700">
                     8 (904) 022-4334
                   </a>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Mail className="mt-0.5 h-4 w-4 text-red-600" aria-hidden />
+                  <a href="mailto:Oleg-k1985@mail.ru" className="font-semibold text-red-600 hover:text-red-700">
+                    Oleg-k1985@mail.ru
+                  </a>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 min-w-4 items-center justify-center text-[10px] font-bold uppercase text-red-600">
+                    ИНН
+                  </span>
+                  <p>695004589005</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

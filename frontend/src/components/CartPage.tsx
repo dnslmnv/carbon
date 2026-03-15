@@ -142,6 +142,14 @@ export const CartPage = ({
             {orderLoading ? 'Оформляем...' : 'Оформить заказ'}
           </button>
           {orderError ? <p className="mt-2 text-xs text-red-600">{orderError}</p> : null}
+          <div className="mt-3 flex justify-center">
+            <img
+              src="/images.png"
+              alt="Платёжная система МИР"
+              className="h-6 w-auto object-contain"
+              loading="lazy"
+            />
+          </div>
           <p className="mt-2 text-xs text-gray-400">
             Нажимая кнопку «Оформить заказ», вы соглашаетесь с{' '}
             <a href="/policy" className="text-red-600 underline hover:text-red-700">
