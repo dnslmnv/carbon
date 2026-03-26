@@ -2020,8 +2020,8 @@ function App() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Mail className="mt-0.5 h-4 w-4 text-red-600" aria-hidden />
-                  <a href="mailto:Oleg-k1985@mail.ru" className="font-semibold text-red-600 hover:text-red-700">
-                    Oleg-k1985@mail.ru
+                  <a href="mailto:Carbon69.ru@mail.ru" className="font-semibold text-red-600 hover:text-red-700">
+                    Carbon69.ru@mail.ru
                   </a>
                 </div>
                 <div className="flex items-start gap-2">
